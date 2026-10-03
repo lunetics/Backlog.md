@@ -124,6 +124,64 @@ function extractConfigKeyYaml(content: string, key: string): string | undefined 
 	return collected.join("\n");
 }
 
+/**
+ * Capture every column-0 `claims:` occurrence's own span: a header
+ * repeated at column 0 does not fold into the same span, so the claims resolver's own duplicate-block scan can
+ * still see it; content between two occurrences that belongs to another key is dropped, using the same
+ * terminate-at-the-next-key rule as `extractConfigKeyYaml`, but never falling back to an indented look-alike.
+ * Returns nothing when no column-0 `claims:` line exists. The result is validated lazily, never here.
+ */
+function extractClaimsYaml(content: string): string | undefined {
+	const lines = content.split(/\r?\n/);
+	const headerPattern = /^claims\s*:/;
+	const collected: string[] = [];
+	let found = false;
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index] ?? "";
+		if (!headerPattern.test(line)) continue;
+		found = true;
+		collected.push(line);
+		let cursor = index + 1;
+		for (; cursor < lines.length; cursor++) {
+			const next = lines[cursor] ?? "";
+			const trimmed = next.trim();
+			const indent = next.length - next.trimStart().length;
+			if (trimmed.length > 0 && indent === 0 && CONFIG_KEY_LINE_PATTERN.test(next)) break;
+			collected.push(next);
+		}
+		index = cursor - 1;
+	}
+	// A block at the end of the file collects the empty string after the final newline; drop trailing blank
+	// lines so that load → save → load stays byte-identical instead of growing by one newline per save.
+	while (collected.length > 1 && (collected[collected.length - 1] ?? "").trim() === "") collected.pop();
+	return found ? collected.join("\n") : undefined;
+}
+
+/**
+ * The only check `saveConfig` runs on a claims block before writing it:
+ * its header must be a column-0 `claims:` line, and every following line must be blank, a comment, or indented.
+ * This guards against a block silently losing its own key, a nested block being saved as top level, or an
+ * injected column-0 line (e.g. through the browser JSON) landing outside the block it appears to belong to.
+ * Never inspects the block's content otherwise; that validation is the claims resolver's job, done lazily.
+ */
+function claimsBlockError(claimsYaml: string): string | undefined {
+	// A bare carriage return is a line break for some YAML readers; refusing it keeps the column-0 rule below honest.
+	if (claimsYaml.includes("\r")) return "the claims configuration must not contain carriage returns";
+	const lines = claimsYaml.split("\n");
+	if (!/^claims\s*:/.test(lines[0] ?? "")) {
+		return 'the claims configuration must start with a column-0 "claims:" header';
+	}
+	for (const line of lines.slice(1)) {
+		if (line.trim() === "" || line.trimStart().startsWith("#")) continue;
+		// A repeated header is part of the captured span; the resolver reports it as a duplicate, saving must not block.
+		if (/^claims\s*:/.test(line)) continue;
+		if (line.length - line.trimStart().length === 0) {
+			return "the claims configuration must not contain a second column-0 line";
+		}
+	}
+	return undefined;
+}
+
 const CONFIG_VALUE_ERROR_NAME = "ConfigValueError";
 
 /** Reports a config value Backlog refuses to guess at, naming the file and the offending key. */
@@ -2207,11 +2265,18 @@ ${description || `Milestone: ${title}`}`,
 			onStatusChange: config.onStatusChange,
 			prefixes: config.prefixes,
 			backlogDirectory: config.backlogDirectory,
+			// Captured byte-identical, never validated here: a bad or absent block
+			// must never block normal startup or the MCP root.
+			claimsYaml: extractClaimsYaml(content),
 		};
 	}
 
 	private serializeConfig(config: BacklogConfig): string {
 		const normalizedDefinitionOfDone = this.normalizeDefinitionOfDone(config.definitionOfDone);
+		if (config.claimsYaml !== undefined) {
+			const invalid = claimsBlockError(config.claimsYaml);
+			if (invalid) throw new Error(`Backlog could not save the configuration: ${invalid}.`);
+		}
 		const lines = [
 			`project_name: "${config.projectName}"`,
 			...(config.defaultAssignee?.length
@@ -2251,6 +2316,11 @@ ${description || `Milestone: ${title}`}`,
 			...(config.backlogDirectory ? [`backlog_directory: "${config.backlogDirectory}"`] : []),
 		];
 
+		// Appended unchanged behind the guard above, so every one of the nine known writers (CLI, browser,
+		// startup migration, ...) keeps the block instead of silently dropping it.
+		if (config.claimsYaml !== undefined) {
+			return `${lines.join("\n")}\n${config.claimsYaml}\n`;
+		}
 		return `${lines.join("\n")}\n`;
 	}
 

@@ -290,8 +290,9 @@ outside the evidence set; the counted runs of run 1 showed no penalty line, and 
 
 ## Full evidence
 
-The full reports, one per storage format with every row, run id, injection and measured value, are in the
-qualification evidence repository: `docs/2026-09-30-claim-qualification/REPORT-<format>.md`.
+The full reports, one per storage format with every row, run id, injection and measured value, are in
+[docs/claims/qualification/](../../docs/claims/qualification/README.md) (`REPORT-<format>.md`, with a README on the
+stack and the evaluation). The archives themselves, the harness and the evaluator are not part of this repository.
 
 Every counted run was evaluated by the frozen evaluator `k20.py` (sha256 `2a243518…`, recorded by the driver in the
 run and checked at evaluation) together with the product pin `product-pin.py` (sha256 `53968730…`) against this

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { stdin as input } from "node:process";
 import { createInterface } from "node:readline/promises";
 import * as clack from "@clack/prompts";
 import { Command, type OptionValues } from "commander";
 import { runAdvancedConfigWizard } from "./commands/advanced-config-wizard.ts";
+import { registerClaimCommand } from "./commands/claim.ts";
 import { type CompletionInstallResult, installCompletion, registerCompletionCommand } from "./commands/completion.ts";
 import { configureAdvancedSettings } from "./commands/configure-advanced-settings.ts";
 import {
@@ -19,6 +22,11 @@ import {
 } from "./commands/help-schema.ts";
 import { registerInstructionsCommand } from "./commands/instructions.ts";
 import { registerMcpCommand } from "./commands/mcp.ts";
+import {
+	createMultiValueAccumulator,
+	mapTaskFilterOptions,
+	resolveParentFilterId,
+} from "./commands/task-filter-options.ts";
 import { pickTaskForEditWizard, runTaskCreateWizard, runTaskEditWizard } from "./commands/task-wizard.ts";
 import { watchJson } from "./commands/watch-json.ts";
 import { DEFAULT_DIRECTORIES, DEFAULT_FILES, DEFAULT_STATUSES } from "./constants/index.ts";
@@ -134,13 +142,7 @@ import {
 	toStringArray,
 } from "./utils/task-builders.ts";
 import { buildTaskUpdateInput } from "./utils/task-edit-builder.ts";
-import {
-	AmbiguousTaskIdError,
-	canonicalTaskId,
-	isAmbiguousTaskIdError,
-	LOCAL_TASK_LOOKUP_HINT,
-	taskIdsEqual,
-} from "./utils/task-path.ts";
+import { canonicalTaskId, LOCAL_TASK_LOOKUP_HINT, taskIdsEqual } from "./utils/task-path.ts";
 import { sortTasks } from "./utils/task-sorting.ts";
 import { formatValidTaskTypeValues, getTaskTypeValues, resolveTaskTypeValues } from "./utils/task-type-config.ts";
 import { getTerminalStatus, isTerminalStatus } from "./utils/terminal-status.ts";
@@ -266,14 +268,6 @@ async function runMcpClientCommand(client: McpClientSetupKey, serverName = MCP_S
 		console.warn(`       Run manually: ${formatMcpClientSetupCommand(command, args)}`);
 		return `${label} (manual setup required)`;
 	}
-}
-
-// Helper function for accumulating multiple CLI option values
-function createMultiValueAccumulator() {
-	return (value: string, previous: string | string[]) => {
-		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
-		return [...soFar, value];
-	};
 }
 
 function printMissingRequiredArgument(argumentName: string): void {
@@ -696,30 +690,6 @@ function validateClearableListInput(input: {
 		return `Cannot use an empty value with ${input.setterFlags}. ${guidance}`;
 	}
 	return undefined;
-}
-
-/**
- * Resolve a --parent argument to the single task it names, before any child task is read.
- *
- * This is the same working-copy lookup that `task view` and `task create --parent` use, so one ID
- * cannot name a filterable parent for one command and a missing task for another. Identity fails
- * closed exactly as it does for a targeted task ID: a value matching several files must not silently
- * filter on whichever one came first. Returns the resolved canonical ID so filtering never runs on
- * the raw input.
- */
-async function resolveParentFilterId(core: Core, parentId: string, parentDisplayId: string): Promise<string> {
-	let parent: Task | null;
-	try {
-		parent = await core.loadTaskById(parentId, { includeCrossBranch: false });
-	} catch (error) {
-		// Report the collision under the configured prefix, which a bare numeric argument lacks.
-		if (isAmbiguousTaskIdError(error)) throw new AmbiguousTaskIdError(parentDisplayId, error.candidates);
-		throw error;
-	}
-	if (!parent) {
-		throw new Error(`Parent task ${parentDisplayId} not found. ${LOCAL_TASK_LOOKUP_HINT}`);
-	}
-	return parent.id;
 }
 
 /**
@@ -2575,6 +2545,24 @@ function printTasksGroupedByStatus(tasks: Task[], statuses: string[]): void {
 	}
 }
 
+/**
+ * `sha256:` plus the SHA-256 of the task file's bytes in the working copy, read after the query; `null` when
+ * the file vanished in between. Plain bytes, no Git, so it also works under `filesystemOnly`.
+ */
+async function taskFileRevisions(tasks: readonly Task[]): Promise<Map<string, string | null>> {
+	const revisions = new Map<string, string | null>();
+	for (const task of tasks) {
+		let bytes: Buffer | null = null;
+		try {
+			bytes = task.filePath ? await readFile(task.filePath) : null;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		}
+		revisions.set(task.id, bytes ? `sha256:${createHash("sha256").update(bytes).digest("hex")}` : null);
+	}
+	return revisions;
+}
+
 async function runTaskList(
 	options: OptionValues,
 	emitJson: (value: ReturnType<typeof taskListJson>) => void = printJson,
@@ -2594,68 +2582,18 @@ async function runTaskList(
 		cleanup();
 		return;
 	}
-	if (options.assignee && options.unassigned) {
-		console.error("--unassigned cannot be combined with --assignee.");
+	// The flag mapping is shared with `claim next`; `task list` keeps its texts and exit codes, passes
+	// `--status` through unvalidated and ignores the blank-value report.
+	const mapped = await mapTaskFilterOptions(core, options, { validateStatus: false });
+	if (mapped.kind === "invalid") {
+		console.error(mapped.message);
 		process.exitCode = 1;
 		cleanup();
 		return;
 	}
-	const baseFilters: TaskListFilter = {};
-	if (options.status) {
-		baseFilters.status = parseDelimitedStringList(options.status) ?? options.status;
-	}
-	const excludeStatuses = parseDelimitedStringList(options.excludeStatus) ?? [];
-	if (excludeStatuses.length > 0) {
-		const canonicalExcludeStatuses = await normalizeCliStatusList(core, excludeStatuses, "exclude-status");
-		if (!canonicalExcludeStatuses) {
-			cleanup();
-			return;
-		}
-		baseFilters.excludeStatus = canonicalExcludeStatuses;
-	}
-	if (options.assignee) {
-		baseFilters.assignee = options.assignee;
-	}
-	if (options.unassigned) {
-		baseFilters.unassigned = true;
-	}
-	if (options.milestone) {
-		baseFilters.milestone = options.milestone;
-	}
-	if (options.priority) {
-		const priority = await normalizeCliPriority(core, String(options.priority));
-		if (!priority) {
-			cleanup();
-			return;
-		}
-		baseFilters.priority = priority;
-	}
-	const rawTaskTypes = parseDelimitedStringList(options.type) ?? [];
-	if (rawTaskTypes.length > 0) {
-		const canonicalTaskTypes = await normalizeCliTaskTypes(core, rawTaskTypes, "type");
-		if (!canonicalTaskTypes) {
-			cleanup();
-			return;
-		}
-		baseFilters.type = canonicalTaskTypes;
-	}
-	const rawProjects = parseDelimitedStringList(options.project) ?? [];
-	if (rawProjects.length > 0) {
-		const canonicalProjects = await normalizeCliProjects(core, rawProjects, "project");
-		if (!canonicalProjects) {
-			cleanup();
-			return;
-		}
-		baseFilters.project = canonicalProjects;
-	}
-
-	const labelFilters = parseDelimitedStringList(options.labels) ?? [];
-	if (labelFilters.length > 0) {
-		// `--labels` is documented as requiring every listed label.
-		baseFilters.labels = labelFilters;
-		baseFilters.labelMatch = "all";
-	}
-	const searchQuery = typeof options.search === "string" ? options.search.trim() : "";
+	const baseFilters = mapped.filter;
+	const labelFilters = mapped.labels;
+	const searchQuery = mapped.query;
 	let taskLimit: number | undefined;
 	if (options.limit !== undefined) {
 		const parsedLimit = parsePositiveIntegerOption(options.limit, "--limit", "backlog task list --help");
@@ -2670,8 +2608,8 @@ async function runTaskList(
 	// configured prefix; the canonical form is only used for display.
 	let parentId: string | undefined;
 	let parentDisplayId: string | undefined;
-	if (options.parent !== undefined) {
-		parentId = String(options.parent).trim();
+	if (mapped.parent !== undefined) {
+		parentId = mapped.parent;
 		if (parentId === "") {
 			// A blank value must not silently degrade into "no parent filter" and list every task.
 			console.error("Cannot use an empty value with --parent. Omit the flag to list every task.");
@@ -2738,7 +2676,8 @@ async function runTaskList(
 		const readyRows = options.ready ? readinessRows.filter((row) => row.isReady) : readinessRows;
 		if (outputMode === "json") {
 			const page = selectListWindow(narrowForDisplay(readyRows), listWindow);
-			emitJson(taskListJson(page.items, page));
+			const revisions = options.revision ? await taskFileRevisions(page.items) : undefined;
+			emitJson(taskListJson(page.items, page, revisions));
 			cleanup();
 			return;
 		}
@@ -2961,12 +2900,19 @@ const taskListCommand = addHelpSchema(taskCmd.command("list"), {
 			description:
 				"Requires --json; emit an initial full list and changed replacements until stopped or the process that started it ends",
 		},
+		{
+			name: "revision",
+			type: "Boolean",
+			description:
+				"Requires --json; add revision per task: sha256 of the task file in this working copy, null if it vanished",
+		},
 	],
 	output: `Interactive task list, plain text with --plain, or versioned JSON with --json. ${LIST_WINDOW_OUTPUT_HELP}; JSON adds total and nextSkip. With --json --watch, successive complete JSON values use the same formatting; replace the previous list with each value. Restart for a fresh snapshot; intermediate edits may be coalesced.`,
 	examples: [
 		'backlog task list --status "<todo status>" --plain',
 		"backlog task list --ready --plain",
 		"backlog task list --json --watch",
+		"backlog task list --json --revision",
 		'backlog task list --status "<todo status>" --json',
 		"backlog task list --parent {{TASK_ID:1}}",
 		`backlog task list --type ${TASK_TYPE_EXAMPLE} --plain`,
@@ -3014,14 +2960,16 @@ addListWindowOptions(taskListCommand)
 	.option("--plain", "use plain text output instead of interactive UI")
 	.option("--json", "print versioned machine-readable JSON output")
 	.option("--watch", "keep emitting changed full JSON lists (requires --json)")
+	.option("--revision", "add a content revision per task (requires --json)")
 	.action(async (options) => {
-		if (!options.watch) {
-			await runTaskList(options);
+		if ((options.watch || options.revision) && getTaskReadOutputMode(options) !== "json") {
+			if (options.watch) console.error("--watch requires --json and cannot be combined with --plain.");
+			if (options.revision) console.error("--revision requires --json and cannot be combined with --plain.");
+			process.exitCode = 1;
 			return;
 		}
-		if (getTaskReadOutputMode(options) !== "json") {
-			console.error("--watch requires --json and cannot be combined with --plain.");
-			process.exitCode = 1;
+		if (!options.watch) {
+			await runTaskList(options);
 			return;
 		}
 		const cwd = await requireProjectRoot();
@@ -5924,6 +5872,9 @@ registerInstructionsCommand(program);
 
 // MCP command group
 registerMcpCommand(program);
+
+// Claim command group
+registerClaimCommand(program);
 
 program
 	.parseAsync(process.argv)

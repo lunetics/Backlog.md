@@ -203,3 +203,55 @@ export function sortTasks<T extends { id: string; priority?: string; ordinal?: n
 			return sortByOrdinalAndPriority(items, priorityOrder);
 	}
 }
+
+/** `YYYY-MM-DD`, optionally followed by ` HH:MM[:SS]` or `THH:MM[:SS]` and `Z` or an explicit `±HH:MM` offset. */
+const CREATED_AT = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:\d{2})?)?$/;
+
+/**
+ * A task's creation instant from `createdDate`; no `TASK_SORT_FIELDS` entry. A date alone is
+ * 00:00 UTC, a time without a zone or with `Z` is UTC (Backlog writes UTC minutes), an explicit offset goes through
+ * `Date.parse`. Anything else, an impossible calendar date included, is missing (`null`), never epoch 0.
+ */
+export function taskCreatedAt(createdDate: string | undefined): number | null {
+	const match = CREATED_AT.exec(createdDate?.trim() ?? "");
+	if (match === null) return null;
+	const [, year = "", month = "", day = "", hour = "00", minute = "00", second = "00", zone] = match;
+	const [y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0] = [year, month, day, hour, minute, second].map(Number);
+	if (h > 23 || mi > 59 || s > 59) return null;
+	const utc = Date.UTC(y, mo - 1, d, h, mi, s);
+	const calendar = new Date(utc);
+	if (calendar.getUTCFullYear() !== y || calendar.getUTCMonth() !== mo - 1 || calendar.getUTCDate() !== d) return null;
+	if (zone === undefined || zone === "Z") return utc;
+	const offset = Date.parse(`${year}-${month}-${day}T${hour}:${minute}:${second}${zone}`);
+	return Number.isFinite(offset) ? offset : null;
+}
+
+/** Ascending creation instants; a missing instant sorts after every dated one. */
+function compareCreatedAt(a: number | null, b: number | null): number {
+	if (a === b) return 0;
+	if (a === null) return 1;
+	if (b === null) return -1;
+	return a - b;
+}
+
+/**
+ * Claim-next's `age` order, the creation instant ascending, then `compareTaskIds`; no other
+ * tie-breaker (not the title, the ordinal or the update date).
+ */
+export function compareByAge<T extends { id: string; createdDate?: string }>(a: T, b: T): number {
+	const byInstant = compareCreatedAt(taskCreatedAt(a.createdDate), taskCreatedAt(b.createdDate));
+	return byInstant !== 0 ? byInstant : compareTaskIds(a.id, b.id);
+}
+
+/**
+ * Claim-next's default order, the configured priority rank descending (missing or
+ * unconfigured ranks 0, last), then `compareByAge`. It differs from `sortByPriority`, which falls back to the ID.
+ */
+export function compareByPriorityThenAge<T extends { id: string; priority?: string; createdDate?: string }>(
+	a: T,
+	b: T,
+	priorities?: readonly string[],
+): number {
+	const byRank = getPriorityRank(b.priority, priorities) - getPriorityRank(a.priority, priorities);
+	return byRank !== 0 ? byRank : compareByAge(a, b);
+}

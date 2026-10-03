@@ -16,7 +16,7 @@ Create a task when work requires planning, decisions, or handoff notes. Search f
 
 For long lists, use `--max-count` and `--skip`, follow the printed `Next` command, or use `--count` for the total; command help covers the details.
 
-For scripts, `task list`, `task view`, `task <id>`, and `search` accept versioned `--json` output instead of `--plain`. `task list --json --watch` emits complete replacement responses; read successive JSON values, not individual lines. Filters and local scope are unchanged; intermediate edits may be coalesced. Restart for a fresh snapshot.
+For scripts, `task list`, `task view`, `task <id>`, and `search` accept versioned `--json` output instead of `--plain`. `task list --json --watch` emits complete replacement responses; read successive JSON values, not individual lines. Filters and local scope are unchanged; intermediate edits may be coalesced. Restart for a fresh snapshot. Add `--revision` to `task list --json` (also with `--watch`) to get a `revision` per task: `sha256:` plus the SHA-256 of the task file, or `null` if the file vanished while listing. Compare revisions between reads; never infer fields from them. `--revision` reports what this working copy holds. It is not a watch engine and does not capture every foreign change: edits on other branches or remotes appear only once they reach this working copy, and `--watch` may coalesce intermediate edits.
 
 ### Required Guides
 
@@ -25,6 +25,8 @@ Read the matching guide before taking these actions; this overview does not repl
 - `backlog instructions task-creation` — before creating or splitting tasks
 - `backlog instructions task-execution` — before planning, changing status or assignee, adding notes, or implementing
 - `backlog instructions task-finalization` — before checking acceptance criteria, writing final summaries, or marking work finished
+
+If the project configures ticket claims (a `claims:` block in its configuration), read `backlog instructions claims` before acquiring, renewing, transferring, or reclaiming a claim. A claim records which agent holds a ticket right now; it is not the assignee and never changes the task.
 
 Use `backlog <command> --help` before unfamiliar operations. Help describes fields, output, and examples.
 

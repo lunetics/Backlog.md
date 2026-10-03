@@ -156,6 +156,8 @@ Mark verified work Done (or the configured final status). During periodic cleanu
 
 If the output is not good enough: clear the plan/notes/final summary, refine the task description and acceptance criteria, and run the task again in a fresh session.
 
+**Several agents in one backlog.** Ticket claims keep two agents from working on the same ticket at the same time. Agents read `backlog instructions claims` before they acquire, renew, transfer or reclaim a claim; the workflows with runnable examples are in [CLAIMS.md](CLAIMS.md).
+
 ---
 
 ## Working without AI agents
@@ -182,7 +184,7 @@ You can switch between AI-assisted and manual workflows at any time; both operat
 
 Read commands support stable, versioned JSON for scripts and integrations. Use `--json` with `task list`, `task view`, the `task <id>` shorthand, and `search`. JSON mode is noninteractive and keeps successful stdout machine-readable. Add `--watch` to `task list --json` for an initial full list followed by changed full replacements, using the exact same JSON format. Read successive complete JSON values; each response replaces the previous list.
 
-**Learn more:** [CLI reference](CLI-INSTRUCTIONS.md) | [Advanced configuration](ADVANCED-CONFIG.md)
+**Learn more:** [CLI reference](CLI-INSTRUCTIONS.md) | [Advanced configuration](ADVANCED-CONFIG.md) | [Claims](CLAIMS.md)
 
 ---
 

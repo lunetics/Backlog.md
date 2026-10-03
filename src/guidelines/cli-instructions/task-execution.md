@@ -17,6 +17,8 @@ Before writing code for non-trivial work:
 3. Mark it in progress and assign yourself:
    - Inspect accepted statuses if needed: `backlog task edit {{TASK_ID:123}} --help`
    - `backlog task edit {{TASK_ID:123}} -s "<active status>" -a @your-name`
+   - If the project configures claims, read `backlog instructions claims` before claiming the task: a claim is not the
+     assignee, and assigning yourself does not claim the ticket.
 4. Research the current system, including relevant code, tests, conventions, and recent changes. Do not rely on an
    implementation approach proposed when the task was created.
 5. Draft an implementation plan.

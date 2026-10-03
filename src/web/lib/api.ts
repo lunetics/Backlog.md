@@ -1,3 +1,4 @@
+import type { ClaimErrorDocument, ClaimListDocument } from "../../claims/surface/index.ts";
 import type { DuplicateRepairPlan, DuplicateRepairResult } from "../../core/duplicate-task-repair.ts";
 import type { TaskStatistics } from "../../core/statistics.ts";
 import type { TaskDetail } from "../../core/task-detail.ts";
@@ -145,6 +146,9 @@ const DEFAULT_CONFIG: RequestConfig = {
 	timeout: 10000,
 };
 
+/** A claim read may wait on the coordination remote, so it gets more than the default timeout. */
+const CLAIM_READ_TIMEOUT_MS = 60_000;
+
 export class ApiClient {
 	private config: RequestConfig;
 
@@ -153,9 +157,15 @@ export class ApiClient {
 	}
 
 	// Enhanced fetch with retry logic and better error handling
-	private async fetchWithRetry(url: string, options: RequestInit = {}, retriesOverride?: number): Promise<Response> {
-		const { retries: configuredRetries = 3, timeout = 10000 } = this.config;
+	private async fetchWithRetry(
+		url: string,
+		options: RequestInit = {},
+		retriesOverride?: number,
+		timeoutOverride?: number,
+	): Promise<Response> {
+		const { retries: configuredRetries = 3, timeout: configuredTimeout = 10000 } = this.config;
 		const retries = retriesOverride ?? configuredRetries;
+		const timeout = timeoutOverride ?? configuredTimeout;
 		let lastError: Error | undefined;
 
 		for (let attempt = 0; attempt <= retries; attempt++) {
@@ -329,6 +339,16 @@ export class ApiClient {
 	/** Reads one task through the detail path, so the response already carries its dependency graph. */
 	async fetchTask(id: string): Promise<TaskDetail> {
 		return this.fetchJson<TaskDetail>(`${API_BASE}/task/${encodeURIComponent(id)}`);
+	}
+
+	/**
+	 * The claim owner of one task. Never retried, because a read reaches the coordination remote and only
+	 * the user's refresh may repeat it; the long timeout leaves room for the core's own attempt timeout and budget.
+	 */
+	async fetchTaskClaim(id: string): Promise<ClaimListDocument | ClaimErrorDocument> {
+		const url = `${API_BASE}/tasks/${encodeURIComponent(id)}/claim`;
+		const response = await this.fetchWithRetry(url, {}, 0, CLAIM_READ_TIMEOUT_MS);
+		return response.json();
 	}
 
 	async createTask(task: Omit<Task, "id" | "createdDate">): Promise<Task> {

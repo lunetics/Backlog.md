@@ -55,6 +55,12 @@ const TICKET = "BACK-1";
 const TICKET_REF = `refs/claims/${TICKET}`;
 const ADAPTER_TIMEOUT = 3_000;
 const TEST_TIMEOUT = 10_000;
+/**
+ * How long a fixture waits for something the test started (a held push, a landed ref): longer than the adapter's
+ * per-command timeout, because a loaded runner can take that long just to spawn and connect a git process, yet short
+ * enough that one exhausted wait still ends a row with the fixture's own message before TEST_TIMEOUT.
+ */
+const FIXTURE_WAIT = 6_000;
 const FETCH_HEAD_SENTINEL = "fixture sentinel: claim storage must not write FETCH_HEAD\n";
 /** (amended): a refused ticket write whose re-read finds the ref moved or gone, with its fixed reason. */
 const REREAD_STALE: ClaimWriteResult = {
@@ -308,9 +314,9 @@ class PushHoldProxy {
 		socket.once("close", () => this.sockets.delete(socket));
 	}
 
-	/** Waits, bounded by ADAPTER_TIMEOUT, until `count` push connections are held. */
+	/** Waits, bounded by FIXTURE_WAIT, until `count` push connections are held. */
 	async untilHeld(count: number): Promise<void> {
-		const deadline = Date.now() + ADAPTER_TIMEOUT;
+		const deadline = Date.now() + FIXTURE_WAIT;
 		while (this.held.length < count) {
 			if (Date.now() > deadline) throw new Error(`push hold proxy: ${this.held.length} of ${count} pushes held`);
 			await Bun.sleep(10);
@@ -704,7 +710,7 @@ class AdapterCase {
 
 	/** Waits, bounded, until the server's `ref` points at `oid`, so a released winner has landed. */
 	async untilServerRef(ref: string, oid: string): Promise<void> {
-		const deadline = Date.now() + ADAPTER_TIMEOUT;
+		const deadline = Date.now() + FIXTURE_WAIT;
 		while ((await this.serverRefs())[ref] !== oid) {
 			if (Date.now() > deadline) throw new Error(`fixture: ${ref} did not reach ${oid}`);
 			await Bun.sleep(10);

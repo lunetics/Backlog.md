@@ -158,7 +158,8 @@ describe("list windows", () => {
 			);
 		} finally {
 			errors.mockRestore();
-			process.exitCode = previousExitCode;
+			// Bun ignores an assignment of undefined here, so a fresh process gets its 0 back explicitly.
+			process.exitCode = previousExitCode ?? 0;
 		}
 	});
 });

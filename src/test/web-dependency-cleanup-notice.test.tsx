@@ -103,7 +103,9 @@ const respond = async (url: URL, init?: RequestInit): Promise<Response> => {
 	if (url.pathname === "/api/search") {
 		if (failRefreshSearch) {
 			archiveRecoveryEvents.push("refresh");
-			throw new Error("Search network failure");
+			// A 4xx fails at once. A thrown network error would be retried with 1 + 2 + 4 s of backoff and
+			// keep the archive-recovery chain alive long after this test has ended.
+			return json({ error: "Search failed" }, 400);
 		}
 		if (searchHold) await searchHold;
 		return json(tasks.map((task) => ({ type: "task", task, score: 1 })) satisfies SearchResult[]);
@@ -355,12 +357,17 @@ describe("dependency cleanup notice", () => {
 			archiveRecoveryEvents.push("alert");
 			alertMessage = String(message);
 		};
+		// The failed refresh still ends by telling the drafts page to reload. Wait for that, so the
+		// chain settles inside this window instead of after teardown, where its last step would throw
+		// against a closed window and land as an unhandled error in whichever test runs next.
+		window.addEventListener("drafts-updated", () => archiveRecoveryEvents.push("settled"), { once: true });
 		const originalConsoleError = console.error;
 		console.error = () => {};
 
 		try {
 			await archiveFromModal(container, "Archive target");
 			await waitFor(() => archiveRecoveryEvents.includes("alert"), "archive recovery warning");
+			await waitFor(() => archiveRecoveryEvents.includes("settled"), "archive refresh settled");
 		} finally {
 			console.error = originalConsoleError;
 		}

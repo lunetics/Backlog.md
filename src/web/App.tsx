@@ -1090,6 +1090,7 @@ function AppContent() {
         definitionOfDoneDefaults={config?.definitionOfDone ?? []}
         defaultAssignee={config?.defaultAssignee}
         dateFormat={config?.dateFormat}
+        claimsConfigured={Boolean(config?.claimsYaml)}
       />
 
       {dependencyCleanupNotice && (

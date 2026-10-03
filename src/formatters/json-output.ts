@@ -221,8 +221,20 @@ function cutListJson(page: ListPage<unknown> | undefined): { total?: number; nex
 	return page?.cut ? { total: page.total, nextSkip: page.nextSkip } : {};
 }
 
-export function taskListJson(tasks: TaskListItem[], page?: ListPage<unknown>) {
-	return { schemaVersion: 1, kind: "task-list" as const, tasks: tasks.map(toTaskSummaryJson), ...cutListJson(page) };
+/**
+ * `revisions` (task list `--revision` only, id to `sha256:<hex>` or null) adds `revision` to each entry; without it the
+ * entries carry no such key at all, so the default output stays byte-identical. Task view and search never get it.
+ */
+export function taskListJson(
+	tasks: TaskListItem[],
+	page?: ListPage<unknown>,
+	revisions?: ReadonlyMap<string, string | null>,
+) {
+	const summaries = tasks.map(toTaskSummaryJson);
+	const entries = revisions
+		? summaries.map((summary) => ({ ...summary, revision: revisions.get(summary.id) ?? null }))
+		: summaries;
+	return { schemaVersion: 1, kind: "task-list" as const, tasks: entries, ...cutListJson(page) };
 }
 
 export function taskViewJson(task: TaskDetail, projectRoot: string) {

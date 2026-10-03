@@ -299,6 +299,13 @@ describe("McpServer bootstrap", () => {
 			"document_create",
 			"document_update",
 			"document_search",
+			"claim_acquire",
+			"claim_renew",
+			"claim_release",
+			"claim_reclaim",
+			"claim_resolve",
+			"claim_list",
+			"claim_retry",
 		]);
 
 		const resources = await server.testInterface.listResources();

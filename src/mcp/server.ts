@@ -26,6 +26,7 @@ import { resolveBacklogDirectory } from "../utils/backlog-directory.ts";
 import { getVersion } from "../utils/version.ts";
 import { registerInitRequiredResource } from "./resources/init-required/index.ts";
 import { registerWorkflowResources } from "./resources/workflow/index.ts";
+import { registerClaimTools } from "./tools/claims/index.ts";
 import { registerDefinitionOfDoneTools } from "./tools/definition-of-done/index.ts";
 import { registerDocumentTools } from "./tools/documents/index.ts";
 import { registerMilestoneTools } from "./tools/milestones/index.ts";
@@ -269,6 +270,7 @@ export class McpServer extends Core {
 		registerMilestoneTools(this);
 		registerDefinitionOfDoneTools(this);
 		registerDocumentTools(this, config);
+		registerClaimTools(this);
 
 		// Notify client that available tools/resources/prompts changed
 		await this.server.sendToolListChanged();
@@ -548,6 +550,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 	registerMilestoneTools(server);
 	registerDefinitionOfDoneTools(server);
 	registerDocumentTools(server, config);
+	registerClaimTools(server);
 
 	// Follow the client workspace roots so a server launched in the main checkout
 	// (or a shared/user-scope server) targets the active project, not a frozen one.

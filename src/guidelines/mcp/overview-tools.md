@@ -31,6 +31,7 @@ Mark finished work Done (or the configured final status). Leave it on the board 
 - `document_list`, `document_view`, `document_create`, `document_update`, `document_search`
 - `document_create` and `document_update` support docs-directory-relative `path` values such as `guides/setup`; absolute paths and `..` traversal are rejected
 - `definition_of_done_defaults_get`, `definition_of_done_defaults_upsert`
+- `claim_acquire`, `claim_renew`, `claim_release`, `claim_reclaim`, `claim_resolve`, `claim_list`, `claim_retry`
 
 **Definition of Done support**
 - `definition_of_done_defaults_get` reads project-level DoD defaults from config

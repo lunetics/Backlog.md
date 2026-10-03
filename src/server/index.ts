@@ -1,8 +1,10 @@
 import net from "node:net";
 import { dirname, isAbsolute, join } from "node:path";
 import type { Server, ServerWebSocket } from "bun";
+import { type ClaimDocument, claimErrorDocument, runClaimList } from "../claims/surface/index.ts";
 import { DEFAULT_STATUSES } from "../constants/index.ts";
 import { CONTENT_RECORD_WORDS, Core, formatCleanupResult, RecordRefusedError } from "../core/backlog.ts";
+import { claimProjectEnv, isClaimDocument } from "../core/claim-env.ts";
 import type { ContentStore } from "../core/content-store.ts";
 import { initializeProject } from "../core/init.ts";
 import type { SearchService } from "../core/search-service.ts";
@@ -434,6 +436,9 @@ export class BacklogServer {
 					},
 					"/api/tasks/:id/archive": {
 						POST: async (req: Request & { params: { id: string } }) => await this.handleArchiveTask(req.params.id),
+					},
+					"/api/tasks/:id/claim": {
+						GET: async (req: Request & { params: { id: string } }) => await this.handleGetTaskClaim(req.params.id),
 					},
 					"/api/tasks/:id/demote": {
 						POST: async (req: Request & { params: { id: string } }) => await this.handleDemoteTask(req.params.id),
@@ -1078,6 +1083,25 @@ export class BacklogServer {
 		if (resolved instanceof Response) return resolved;
 		await this.ensureServicesReady();
 		return Response.json(await loadTaskDetail(this.core, resolved, { includeCrossBranch: true }));
+	}
+
+	/**
+	 * The claim owner of one task, the unchanged document of `backlog claim list --ticket <id> --json`.
+	 * Never a context (so never rights), never a wait for the content store, and every answer is no-store: the
+	 * document's `status` carries the semantics, so every document answers 200. Drafts have no claim.
+	 */
+	private async handleGetTaskClaim(taskId: string): Promise<Response> {
+		if (isDraftId(taskId)) {
+			return Response.json({ error: "Drafts have no claim." }, { status: 404, headers: NO_STORE_HEADERS });
+		}
+		let document: ClaimDocument;
+		try {
+			const env = await claimProjectEnv(this.core.filesystem.rootDir, "list");
+			document = isClaimDocument(env) ? env : await runClaimList({ ticket: taskId }, env);
+		} catch {
+			document = claimErrorDocument({ command: "list", code: "internal" });
+		}
+		return Response.json(document, { status: 200, headers: NO_STORE_HEADERS });
 	}
 
 	private async handleUpdateTask(req: Request, taskId: string): Promise<Response> {

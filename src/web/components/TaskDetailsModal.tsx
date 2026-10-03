@@ -10,6 +10,7 @@ import MermaidMarkdown from './MermaidMarkdown';
 import ChipInput from "./ChipInput";
 import DependencyInput from "./DependencyInput";
 import { DependencyGraphSection } from "./DependencyGraphSection";
+import { ClaimOwnerCard } from "./ClaimOwnerCard";
 import StoredDate from "./StoredDate";
 import { getPriorityOptions } from "../../utils/priority-config";
 import { getProjectValues, resolveProjectValue } from "../../utils/project-config";
@@ -41,6 +42,7 @@ interface Props {
   definitionOfDoneDefaults?: string[];
   defaultAssignee?: string[];
   dateFormat?: string;
+  claimsConfigured?: boolean;
 }
 
 type Mode = "preview" | "edit" | "create";
@@ -196,6 +198,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
   definitionOfDoneDefaults,
   defaultAssignee,
   dateFormat,
+  claimsConfigured = false,
 }) => {
   const { theme } = useTheme();
   const isCreateMode = !task;
@@ -1802,6 +1805,17 @@ export const TaskDetailsModal: React.FC<Props> = ({
               disabled={isReadOnly}
             />
           </div>
+
+          {/* Claim owner: read-only, never for drafts; keyed so a ticket switch starts from a clean card */}
+          {claimsConfigured && task && !isDraftMode && !isOpenDraft && (
+            <ClaimOwnerCard
+              key={task.id}
+              taskId={task.id}
+              isOpen={isOpen}
+              dateFormat={dateFormat}
+              renderHeader={(right) => <SectionHeader title="Claim owner" right={right} />}
+            />
+          )}
 
           {/* Labels */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">

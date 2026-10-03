@@ -358,6 +358,8 @@ export interface BacklogConfig {
 	onStatusChange?: string;
 	/** ID prefix configuration for tasks and drafts. Defaults to { task: "task", draft: "draft" } */
 	prefixes?: PrefixConfig;
+	/** Raw `claims:` block of the project configuration, preserved byte-identically; validated lazily by the claims module. */
+	claimsYaml?: string;
 	mcp?: {
 		http?: {
 			host?: string;

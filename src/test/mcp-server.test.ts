@@ -364,6 +364,13 @@ describe("McpServer bootstrap", () => {
 			"document_restore",
 			"document_delete",
 			"document_search",
+			"claim_acquire",
+			"claim_renew",
+			"claim_release",
+			"claim_reclaim",
+			"claim_resolve",
+			"claim_list",
+			"claim_retry",
 		]);
 		// Decisions are archived, restored and deleted from the CLI only; MCP has no decision tool.
 		expect(tools.tools.filter((tool) => tool.name.startsWith("decision_"))).toEqual([]);

@@ -7,12 +7,11 @@ is qualified by that measurement, with which bounds, and what is not. A sentence
 
 ## What was qualified
 
-- Backlog.md revision `fd23b8d` (`backlog --version` 1.52.0), all three storage formats: `blob`, `tree` and
+- Backlog.md revision `cb45f9f` (`backlog --version` 1.53.0), all three storage formats: `blob`, `tree` and
   `commit-chain`.
-- Later commits changed the claim storage module once: a terminal signal (SIGINT, SIGTERM or SIGHUP) sent to a
-  claim command now reaches its in-flight Git call as well. That change is covered by the shipped test suite
-  (`claim-interrupt`, 10 of 10 checks over loopback transports), not by this measurement; `fd23b8d` stays the
-  measured revision.
+- The measured revision is the head of the published claims history. The claim modules of that head are
+  byte-equal to the product archived with every counted run (compared by Git blob hash), so the numbers below
+  describe the shipped code, not an earlier state of it.
 - Linux containers only. macOS, Windows and NFS are unqualified.
 - Three client containers ran the shipped `backlog` CLI, and for some checks `backlog mcp start`, against one
   coordination area. Server hooks held pushes so that concurrent writes really overlapped, a network proxy cut,
@@ -30,14 +29,16 @@ is qualified by that measurement, with which bounds, and what is not. A sentence
 
 | stage | what it measured | official run | result |
 | --- | --- | --- | --- |
-| K20a | smoke per server, transport and format; acquire races, transfer; storage format and preflight | `k20a-green1` | 124 of 124 checks passed |
-| K20b | lost replies and network loss; batch reclaim; CLI and MCP parity; secrets in output | `k20b-green2` | 115 of 115 passed |
-| K20c | clock skew and late writes; restore, new epochs, incompatible data, `enabled: false`; sizes up to 100 claims | `k20c-final1` | 87 of 87 passed |
-| K20c-size | 1000 claims and a bandwidth-limited link | `k20c-size3` | 13 of 13 passed |
+| K20a | smoke per server, transport and format; acquire races, transfer; storage format and preflight | `k20a-native1` | 124 of 124 checks passed |
+| K20b | lost replies and network loss; batch reclaim; CLI and MCP parity; secrets in output | `k20b-native1` | 115 of 115 passed |
+| K20c | clock skew and late writes; restore, new epochs, incompatible data, `enabled: false`; sizes up to 100 claims | `k20c-native1` | 87 of 87 passed |
+| K20c-size | 1000 claims and a bandwidth-limited link | `k20c-size-native1` | 13 of 13 passed |
 
-Each stage counts its first official run. Run 2 of the final matrix (`k20a-rep2`, `k20b-rep4`, `k20c-rep1`) matched
-run 1 in every verdict. The size stage ran once by design; no call differed by more than 30 % between the three
-formats, which would have asked for a second run.
+Each stage counts its run on this revision. The same matrix ran twice before on the earlier revision `fd23b8d`
+(`k20a-green1`, `k20b-green2`, `k20c-final1`, `k20c-size3`, then `k20a-rep2`, `k20b-rep4`, `k20c-rep1`) with the
+same verdicts, and on this revision every check kept its status and completeness. The size stage ran once per
+revision by design; no call differed by more than 30 % between the three formats, which would have asked for a
+second run.
 
 ## Servers and transports
 
@@ -81,41 +82,41 @@ acquired free tickets.
 ## Sizes and latency
 
 Measured over `https://` through the proxy, three formats, defaults `attempt_timeout_ms` 10000 and
-`operation_budget_ms` 30000 (`k20c-final1` up to 100 claims, `k20c-size3` at 1000 claims, each alone on the test
+`operation_budget_ms` 30000 (`k20c-native1` up to 100 claims, `k20c-size-native1` at 1000 claims, each alone on the test
 machine). Latency is added per direction. Each cell shows the elapsed time across the three formats and the
 status; "incomplete" means `complete: false`.
 
 | claims | latency | `list` | `list --context` | `reclaim-preview --all` | `next` | batch of 10 | batch of 100 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 0 ms | 1.0–1.2 s `ok` | 1.4 s `ok` | 1.1–1.3 s `ok` | 3.4–3.8 s `applied` | 3.3 s `ok` (1 ticket) | — |
-| 1 | 200 ms | 5.1–5.5 s `ok` | 4.7–5.2 s `ok` | 4.7–5.0 s `ok` | 17.6–17.9 s `applied` | 14.3–14.7 s `ok` (1 ticket) | — |
-| 1 | 1000 ms | 22.9–23.3 s `ok` | 20.8–21.1 s `ok` | 20.7–21.3 s `ok` | 67.0–67.6 s `applied` | 48.0–48.6 s `ok` (1 ticket) | — |
-| 100 | 0 ms | 19.6–21.2 s `ok` | 15.8–17.5 s `ok` | 15.4–17.5 s `ok` | 4.0–4.2 s `rejected` | 18.4–19.7 s `ok` | 165.8–172.4 s `ok` |
-| 100 | 200 ms | 31.0–33.1 s `unknown`, incomplete | 30.9–31.6 s `unknown`, incomplete | 31.3–32.0 s `unknown`, incomplete | 28.8–28.9 s `rejected` | 122.0–123.5 s `ok` | not run |
-| 100 | 1000 ms | 32.8–33.4 s `unknown`, incomplete | 39.0–39.3 s `unknown`, incomplete | 30.9–31.1 s `unknown`, incomplete | 141.0–141.1 s `rejected` | 126.0–126.3 s `unavailable`, incomplete | not run |
-| 100, Gitea `ssh://`, blob | 0 ms | 30.6 s `unknown`, incomplete | — | 30.6 s `unknown`, incomplete | — | 24.4 s `ok` | — |
-| 1000 | 0 ms | 30.7–31.0 s `unknown`, incomplete | 30.5–31.0 s `unknown`, incomplete | 30.6–31.0 s `unknown`, incomplete | 7.7–7.9 s `rejected` | 18.5–20.9 s `ok` | 153.8–188.7 s `ok` |
-| 1000 | 200 ms | 31.2–31.6 s `unknown`, incomplete | 31.8–32.2 s `unknown`, incomplete | 31.9–32.3 s `unknown`, incomplete | 32.6–33.0 s `rejected` | 123.6–125.7 s `ok` | not run |
-| 1000 | 1000 ms | 32.9–33.4 s `unknown`, incomplete | 39.0–39.5 s `unknown`, incomplete | 30.9–31.0 s `unknown`, incomplete | 144.8–145.6 s `rejected` | 126.5–126.8 s `unavailable`, incomplete | not run |
-| 1000, 128 KB/s | — | 31.0–31.4 s `unknown`, incomplete | — | 31.2–32.3 s `unknown`, incomplete | — | — | — |
+| 1 | 0 ms | 1.0–1.2 s `ok` | 1.3–1.5 s `ok` | 1.1–1.4 s `ok` | 3.4–3.9 s `applied` | 3.2 s `ok` (1 ticket) | — |
+| 1 | 200 ms | 5.0–5.6 s `ok` | 4.7–4.9 s `ok` | 4.7–5.2 s `ok` | 17.6–18.0 s `applied` | 14.2–14.7 s `ok` (1 ticket) | — |
+| 1 | 1000 ms | 22.9–23.2 s `ok` | 20.9–21.1 s `ok` | 20.7–21.4 s `ok` | 67.0–67.3 s `applied` | 48.0–48.2 s `ok` (1 ticket) | — |
+| 100 | 0 ms | 19.6–21.3 s `ok` | 15.9–17.7 s `ok` | 15.9–17.7 s `ok` | 3.9 s `rejected` | 17.8–20.1 s `ok` | 163.7–166.9 s `ok` |
+| 100 | 200 ms | 30.6–32.4 s `unknown`, incomplete | 31.4 s `unknown`, incomplete | 31.3–31.7 s `unknown`, incomplete | 28.7–29.4 s `rejected` | 122.5–123.2 s `ok` | not run |
+| 100 | 1000 ms | 32.8–33.3 s `unknown`, incomplete | 39.1–39.4 s `unknown`, incomplete | 31.0–31.2 s `unknown`, incomplete | 140.8–141.2 s `rejected` | 126.0–126.5 s `unavailable`, incomplete | not run |
+| 100, Gitea `ssh://`, blob | 0 ms | 31.1 s `unknown`, incomplete | — | 30.8 s `unknown`, incomplete | — | 24.1 s `ok` | — |
+| 1000 | 0 ms | 30.8–31.3 s `unknown`, incomplete | 30.5–30.6 s `unknown`, incomplete | 30.5–31.1 s `unknown`, incomplete | 7.7–8.0 s `rejected` | 17.9–19.5 s `ok` | 152.3–175.1 s `ok` |
+| 1000 | 200 ms | 31.1–31.5 s `unknown`, incomplete | 31.7–32.4 s `unknown`, incomplete | 31.8–32.3 s `unknown`, incomplete | 32.8–33.6 s `rejected` | 124.5–125.8 s `ok` | not run |
+| 1000 | 1000 ms | 33.1–33.3 s `unknown`, incomplete | 39.0–39.5 s `unknown`, incomplete | 31.0–31.1 s `unknown`, incomplete | 144.1–144.7 s `rejected` | 126.3–126.5 s `unavailable`, incomplete | not run |
+| 1000, 128 KB/s | — | 30.9–31.4 s `unknown`, incomplete | — | 30.8–31.6 s `unknown`, incomplete | — | — | — |
 
 - **The 30 s budget is per call, never per batch.** A batch reclaims one ticket after another, each with its own
-  `operation_budget_ms`; the batch of 100 took 165.8–172.4 s at 100 claims and 153.8–188.7 s at 1000 claims. No
+  `operation_budget_ms`; the batch of 100 took 163.7–166.9 s at 100 claims and 152.3–175.1 s at 1000 claims. No
   list-type call ran longer than 39.5 s, below `operation_budget_ms` plus `attempt_timeout_ms`.
 - **Incomplete answers say so.** Where a read ran out of budget, `list` and `reclaim-preview` reported every unread
-  claim as `unknown` and ended `unknown` with `complete: false` (at 100 claims and 200 ms: 13 to 15 of 100 read;
-  at 1000 ms: 2 of 100). At 1000 claims they did so at every latency: 119 to 137 of 1000 read at 0 ms, 13 to 14 at
-  200 ms, 2 at 1000 ms, 22 to 23 over 128 KB/s. None reported an unread claim as free.
+  claim as `unknown` and ended `unknown` with `complete: false` (at 100 claims and 200 ms: 13 to 16 of 100 read;
+  at 1000 ms: 2 to 3 of 100). At 1000 claims they did so at every latency: 119 to 157 of 1000 read at 0 ms, 13 to 16
+  at 200 ms, 2 to 3 at 1000 ms, 22 to 23 over 128 KB/s. None reported an unread claim as free.
 - **A batch stops trying what it could not read.** At 100 and at 1000 claims and 1000 ms the batch of 10 reclaimed
   3 tickets, listed the other 7 in `unreadable` and ended `unavailable`.
 - **`claim next` can take minutes.** At 100 and 1000 claims its five candidates were all taken; it ended `rejected`
-  with stop `bound` after five `not-free` attempts, at 1000 ms after up to 141.1 s (100 claims) and 145.6 s (1000
+  with stop `bound` after five `not-free` attempts, at 1000 ms after up to 141.2 s (100 claims) and 144.7 s (1000
   claims).
 
 With 1000 claimed refs, `claim list` and `claim reclaim-preview` return no complete answer under the default budgets
 at any measured latency (0/200/1000 ms, 128 KB/s); they report that honestly as `unknown` / `complete: false`.
 `claim next` answers unambiguously at all three latencies (after ≈ 145 s at 1000 ms); `reclaim-batch` of 10 stays
-complete up to 200 ms and ends `unavailable` after 3 of 10 candidates at 1000 ms (`k20c-size3`).
+complete up to 200 ms and ends `unavailable` after 3 of 10 candidates at 1000 ms (`k20c-size-native1`).
 
 Recommendation, not measured: a project that holds that many claims needs a larger `operation_budget_ms`. Only the
 defaults were measured.
@@ -242,16 +243,18 @@ K20c clock and operations rows over `ssh://`, size rows over `https://`; always 
 A host whose hooks hold a claim ref lock longer than its own ref lock wait (`core.filesRefLockTimeout`) makes the
 overlapping writer end `rejected` with `storage` `remote` instead of `stale`: the writer's re-read still finds the
 old root because the winner's update is not committed yet. Observed on the raw Git server with a harness hook that
-held the lock (`k20b-injoff1`, P2-03, 6 of 6; a guard run, not evidence); with that hook changed the official run
-shows `stale` 6 of 6 (`k20b-green2`). Not seen on Gitea. By the documented stop rules, `claim next` stops at such a
-candidate with exit 2 instead of trying the next one; that was not measured.
+held the lock (`k20b-injoff1` on the earlier revision `fd23b8d`, P2-03, 6 of 6; a guard run, not evidence); with
+that hook changed the official runs show `stale` 6 of 6 (`k20b-green2`, `k20b-native1`). Not seen on Gitea. By the
+documented stop rules, `claim next` stops at such a candidate with exit 2 instead of trying the next one; that was
+not measured.
 
 A restore outside the install-epoch procedure turns back operations that had already landed, and by the documented
 pause rule every context whose own operation it turned back is paused. Observed only in a dry run of the
 qualification (`k20c-dry1`, P6-01w, three formats; not evidence): after a context's `claim release` had landed, the
 server repository was restored to an earlier snapshot, and that context's next `claim renew` ended `paused`, naming
-the release. The official row (`k20c-final1`, P6-01w) frees the ticket with `claim emergency-release` instead and
-shows only that the restored proof works again. How such a context gets out of the pause was not measured; follow
+the release. The official row (P6-01w, `k20c-native1`; the same in `k20c-final1`) frees the ticket with
+`claim emergency-release` instead and shows only that the restored proof works again. How such a context gets out of
+the pause was not measured; follow
 "Install a new epoch after a restore" in `CLAIMS.md`.
 
 OpenSSH 9.8 and later penalise a client address after failed logins by default (`PerSourcePenalties`; defaults
@@ -287,3 +290,9 @@ outside the evidence set; the counted runs of run 1 showed no penalty line, and 
 
 The full reports, one per storage format with every row, run id, injection and measured value, are in the
 qualification evidence repository: `docs/2026-09-30-claim-qualification/REPORT-<format>.md`.
+
+Every counted run was evaluated by the frozen evaluator `k20.py` (sha256 `2a243518…`, recorded by the driver in the
+run and checked at evaluation) together with the product pin `product-pin.py` (sha256 `53968730…`) against this
+revision. The evaluator's own built-in product comparison names the earlier revision `fd23b8d` and therefore reports
+a difference on this one by construction; that line is the only problem it reports, and the separate pin shows the
+archived product byte-equal to `cb45f9f` in every run.

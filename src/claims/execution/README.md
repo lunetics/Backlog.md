@@ -234,7 +234,7 @@ planning.
 - **A re-send is not a resume.** `resendClaimIntent` resends the identical
   change of the same context. `resume` always means the binding takeover
   (action, journal `action`, later `claim resume`); re-sending an earlier
-  process's intent is `retry` or `resendClaimIntent` ("Neusendung").
+  process's intent is `retry` or `resendClaimIntent` (a re-send).
 - **No retention or cleanup rule for journal records.** The API never deletes.
 
 ## Excluded guarantees of transfer, resume and bound changes

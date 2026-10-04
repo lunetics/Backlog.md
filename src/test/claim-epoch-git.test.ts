@@ -1941,7 +1941,7 @@ for (const format of FORMATS) {
 
 					const probe = await c.writeUnreachable(`ep-g10 unreachable probe ${format}\n`);
 					await c.gc();
-					// With OPEN-POINTS "no automatic deletion" (catches: old receipts only reachable from refs the run
+					// With the rule "no automatic deletion" (catches: old receipts only reachable from refs the run
 					// moved, which the server's gc drops): the gc pruned an unreachable object, and every old receipt still
 					// decodes from the archived roots, value for value.
 					expect({

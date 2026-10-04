@@ -144,7 +144,7 @@ type PreviewView = {
 	echoed: string[];
 };
 
-/** Private temp contexts or a subprocess: an explicit third argument (the Testbox runs --timeout=10000). */
+/** Private temp contexts or a subprocess: an explicit third argument (CI runs with --timeout=10000). */
 const LOCAL_TIMEOUT = 30_000;
 /** Loopback Git cases, sized like sad-01 (claim-surface-administration.test.ts:73). */
 const GIT_TIMEOUT = 60_000;
@@ -1454,7 +1454,7 @@ describe("emergency release in the pure planner", () => {
 		// Positive control (catches: a role binding required for this action; the scaffold's fixed rejection).
 		expect(plan(present(foreign()))).toStrictEqual(releasedAt(ROOT, 3));
 		// catches: the action missing from the list every consumer derives from (transition :37-47); the exact
-		// eight-entry pin act-01 is the author's, so only the membership is checked here.
+		// eight-entry pin lives in act-01, so only the membership is checked here.
 		expect((CLAIM_TRANSITION_ACTIONS as readonly string[]).includes("emergency-release")).toBe(true);
 		const roles: { label: string; catches: string; changes: Partial<PlanClaimTransitionOptions> }[] = [
 			{

@@ -542,7 +542,7 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 					// of the signal, guard mutant M2): the command ended by the signal within 2 s.
 					expect(endView(call, END_BOUND)).toEqual({ ended: read.signal, withinBound: true });
 					// (catches: no forward — today the detached git and its helpers outlive the
-					// command, k19-probe2 V1; a forward to the direct child only, guard mutant M1): no
+					// command, as measured; a forward to the direct child only, guard mutant M1): no
 					// process of the call is alive at +100 ms, +1 s and +3 s.
 					expect(call.left).toEqual(NONE_LEFT);
 				});

@@ -1652,7 +1652,7 @@ describe("time-path planner", () => {
 		const narrowing: [string, ClaimTiming, ClaimTiming][] = [
 			["lease with H, H lowered", lease(L, H), lease(L, H - 10 * MINUTE)],
 			["hard, grace to zero", hard(), hard(H, 0)],
-			["pure lease, first hard limit H (K6 bnd-02)", lease(), lease(L, H)],
+			["pure lease, first hard limit H (bnd-02)", lease(), lease(L, H)],
 			["hard, unchanged (no-op write)", hard(), hard()],
 		];
 		checkPlanned(

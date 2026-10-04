@@ -57,8 +57,8 @@ const ATTEMPTS = 3;
 const EPSILON = 250;
 /**
  * Scheduling margins over the attempt bound: the CLI start, the preflight and the local Git work, not
- * the kill (k19-probe1: pipes settle ≤ 2 ms after the group kill). Measured on the author's GREEN simulation k19-sim1
- * (Testbox, one CPU): stalled reads returned after 1.46–1.54 s, stalled pushes after 3.19–3.21 s; the margins keep
+ * the kill (measured: pipes settle ≤ 2 ms after the group kill). Measured in a one-CPU container: stalled reads
+ * returned after 1.46–1.54 s, stalled pushes after 3.19–3.21 s; the margins keep
  * at least 2.5 times that. The failure they separate is a call that never returns, so a generous margin costs no
  * discrimination.
  */
@@ -207,7 +207,7 @@ function subcommandOf(argv: readonly string[]): string {
 	return "";
 }
 
-/** Live processes whose environment carries `mark` (adapted from k19-probe1: the environment tag). */
+/** Live processes whose environment carries `mark` (the environment tag). */
 async function marked(mark: string): Promise<Proc[]> {
 	const found: Proc[] = [];
 	for (const entry of await readdir("/proc")) {

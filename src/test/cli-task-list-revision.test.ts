@@ -48,7 +48,7 @@ type Watch = {
 const CLI_PATH = getTestCliPath();
 /** Git setup plus up to five CLI starts of ≈0.5–1.5 s each; the harness default of 10 s is too tight for that. */
 const TEST_TIMEOUT = 30_000;
-/** The wait for one watch value (cli-json-watch.test.ts:113, 5 s there; doubled for the slower Testbox start). */
+/** The wait for one watch value (cli-json-watch.test.ts:113, 5 s there; doubled for a slower CI start). */
 const WATCH_WAIT = 10_000;
 const LIST = ["task", "list", "--json"];
 const LIST_REVISION = ["task", "list", "--json", "--revision"];

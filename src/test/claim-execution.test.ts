@@ -3207,7 +3207,7 @@ for (const format of FORMATS) {
 					});
 					expect(normalized).toStrictEqual(expected8);
 					// Fixture precondition: the landing came from the first push's receive-pack, not from the repetition. The
-					// receive-pack of a timed-out client ran no post-receive in k3a-green1, so the proof is that the second of
+					// receive-pack of a timed-out client ran no post-receive in the measured run, so the proof is that the second of
 					// two distinct receive-packs was still holding in pre-receive when the ref moved.
 					const receives = await fixture.hooks.invocations("pre", pre8);
 					expect({

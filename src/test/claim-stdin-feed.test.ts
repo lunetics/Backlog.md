@@ -363,7 +363,7 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 					killed: view.killed,
 				}).toEqual({ initialized: "created", opened: "open", seamCalls: 1, killed: true });
 				// (catches: today's `write(input); void end()` — the feed's promise rejects
-				// with EPIPE after git died and nothing handles it, which ends a CLI with exit 1 (k22-probe2); a fix
+				// with EPIPE after git died and nothing handles it, which ends a CLI with exit 1, as measured; a fix
 				// that handles the throw but not a rejection — bun test then fails this row at the rejection,
 				// about KILL_DELAY after the feed, before any view is printed): the write ends not-sent, no process of
 				// the call is alive at +100 ms, +1 s and +3 s, the listener baseline is back, and the ticket ref was

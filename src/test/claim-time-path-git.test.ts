@@ -3365,7 +3365,7 @@ describe("claim time path across process crashes (blob)", () => {
 					pRecord: recordDigest(pIntent),
 					witness: NO_WITNESS,
 				});
-				// `retry <P-ID>` in this process at H − EPS may not re-observe (node d1): pending.
+				// `retry <P-ID>` in this process at H − EPS may not re-observe: pending.
 				const retried = await fixture.resend(fixture.resendOptions(karl, "op-crs-01", steadyClock(H - EPS)));
 				await fixture.expectView(
 					retried.result,
@@ -3570,7 +3570,7 @@ describe("claim time path across process crashes (blob)", () => {
 	);
 
 	test(
-		"crs-04: re-observes a landed P through `retry <P-ID>` before H_s and refuses it at H_s (node d1)",
+		"crs-04: re-observes a landed P through `retry <P-ID>` before H_s and refuses it at H_s",
 		async () => {
 			await withCase("blob", "crs-04", async (fixture) => {
 				const karl = await fixture.context();

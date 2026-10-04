@@ -10,10 +10,9 @@ is qualified by that measurement, with which bounds, and what is not. A sentence
 - Backlog.md revision `cb45f9f` (`backlog --version` 1.53.0), all three storage formats: `blob`, `tree` and
   `commit-chain`.
 - The commits after the measured revision change only documentation and test fixtures (this page, the documents
-  under `docs/claims/`, the README, and a wider wait bound of a test proxy in
-  `src/test/claim-storage-adapters.test.ts`). The claim
-  modules of the published head are byte-equal to the product archived with every counted run (compared by Git
-  blob hash), so the numbers below describe the shipped code, not an earlier state of it.
+  under `docs/claims/`, the README, and the fixtures of the claim tests under `src/test/`). The claim modules of
+  the published head are byte-equal to the product archived with every counted run (compared by Git blob hash),
+  so the numbers below describe the shipped code, not an earlier state of it.
 - Linux containers only. macOS, Windows and NFS are unqualified.
 - Three client containers ran the shipped `backlog` CLI, and for some checks `backlog mcp start`, against one
   coordination area. Server hooks held pushes so that concurrent writes really overlapped, a network proxy cut,

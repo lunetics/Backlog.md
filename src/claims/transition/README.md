@@ -200,5 +200,5 @@ contents.
 
 Glossary: `resume` always means the binding takeover (action, journal
 `action`, later `claim resume`). Re-sending an earlier process's intent is
-`retry` or `resendClaimIntent` ("Neusendung"), never "resume". `transfer` is
-"Übergabe", `change-bounds` is "Grenzänderung".
+`retry` or `resendClaimIntent` (a re-send), never "resume". `transfer` hands a
+claim to another context; `change-bounds` changes its lifetime bounds.

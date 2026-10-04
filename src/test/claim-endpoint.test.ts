@@ -17,7 +17,7 @@ type Entry = [key: string, raw: string];
 type Row = { label: string; catches: string; endpoint: string };
 
 /** Distinctive text that no reason or message may echo. */
-const SENTINEL = "SENTINEL-k16-endpoint-4c1d";
+const SENTINEL = "SENTINEL-endpoint-4c1d";
 /** Verbatim: the one reason of every credential refusal. */
 const CREDENTIAL_REASON = "credentials are not allowed in the claim endpoint; use SSH keys or a Git credential helper";
 /** Verbatim with the key the resolver names (config/index.ts makeProblem). */

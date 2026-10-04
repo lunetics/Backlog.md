@@ -262,19 +262,54 @@ type LocalState = { refs: string[]; head: string; fetchHead: string };
 type TreeEntry = { mode: string; type: string; oid: string };
 
 /**
+ * The first pkt-line of `buffered` once it is complete, else undefined. Git writes a pkt-line's four-digit hex length
+ * and its payload in two writes, so the first data event may carry the length alone. A flush (`0000`) or a length that
+ * is no pkt-line counts as complete, so no connection waits forever.
+ */
+function firstPacketLine(buffered: Buffer): Buffer | undefined {
+	if (buffered.length < 4) return undefined;
+	const header = buffered.subarray(0, 4).toString("latin1");
+	if (!/^[0-9a-f]{4}$/i.test(header)) return buffered;
+	const size = Number.parseInt(header, 16);
+	if (size < 4) return buffered.subarray(0, 4);
+	return buffered.length < size ? undefined : buffered.subarray(4, size);
+}
+
+/**
  * (/), test-local: forwards every connection to the fixture daemon and holds each one whose first
- * packet requests `git-receive-pack` until `release`, before the daemon advertises any ref; reads pass at once. Adapted
- * from DropProxy (claim-git-fixture.ts:249-295). ReceiveGates cannot hold one of two initializers: both push one OID.
+ * pkt-line requests `git-receive-pack` until `release`, before the daemon advertises any ref; reads pass at once. The
+ * line is collected across data events before the connection is classified, and every byte read up to then is
+ * forwarded in order. Adapted from DropProxy (claim-git-fixture.ts). ReceiveGates cannot hold one of two
+ * initializers: both push one OID.
  */
 class PushHoldProxy {
 	readonly port: number;
 	private readonly listener: Server;
 	private readonly sockets = new Set<Socket>();
 	private readonly held: (() => void)[] = [];
+	private readonly started = performance.now();
+	private readonly connections: string[] = [];
+	private accepted = 0;
+	private partial = 0;
 
 	private constructor(listener: Server, port: number) {
 		this.listener = listener;
 		this.port = port;
+	}
+
+	/** Milliseconds since this proxy started, the clock of its connection log. */
+	elapsed(): number {
+		return Math.round(performance.now() - this.started);
+	}
+
+	/** Every connection so far with its service, accept and first-packet time, for failure messages. */
+	get connectionLog(): string {
+		return `${this.accepted} accepted [${this.connections.join(", ")}]`;
+	}
+
+	/** Connections whose first data event carried an incomplete first pkt-line, for the split-packet control. */
+	get partialFirstPackets(): number {
+		return this.partial;
 	}
 
 	static async create(targetPort: number): Promise<PushHoldProxy> {
@@ -291,9 +326,28 @@ class PushHoldProxy {
 		const proxy = new PushHoldProxy(listener, port);
 		listener.on("connection", (client) => {
 			proxy.track(client);
-			client.once("data", (first: Buffer) => {
+			proxy.accepted += 1;
+			const accepted = proxy.elapsed();
+			let buffered = Buffer.alloc(0);
+			const classify = (chunk: Buffer) => {
+				buffered = Buffer.concat([buffered, chunk]);
+				const line = firstPacketLine(buffered);
+				if (line === undefined) {
+					if (buffered.length === chunk.length) proxy.partial += 1;
+					return;
+				}
+				client.off("data", classify);
 				client.pause();
+				const first = buffered;
+				const service = line.includes("git-receive-pack")
+					? "receive-pack"
+					: line.includes("git-upload-pack")
+						? "upload-pack"
+						: "other";
+				proxy.connections.push(`${service} @${accepted}/${proxy.elapsed()} ms`);
 				const forward = () => {
+					// A client that left while held (the split control) gets no upstream connection.
+					if (client.destroyed) return;
 					const upstream = createConnection({ host: "127.0.0.1", port: targetPort });
 					proxy.track(upstream);
 					upstream.on("error", () => client.destroy());
@@ -301,9 +355,10 @@ class PushHoldProxy {
 					client.pipe(upstream).pipe(client);
 					client.resume();
 				};
-				if (first.includes("git-receive-pack")) proxy.held.push(forward);
+				if (service === "receive-pack") proxy.held.push(forward);
 				else forward();
-			});
+			};
+			client.on("data", classify);
 		});
 		return proxy;
 	}
@@ -1523,11 +1578,46 @@ for (const format of ADAPTER_FORMATS) {
 					await probing;
 					expect(await fixture.serverRefs(decoy.repo)).toEqual({ "refs/probe/held": blob });
 
+					// Positive control (catches: a proxy that classifies a connection by its first data event; Git writes a
+					// pkt-line's length and payload in two writes): a push request whose length arrives alone is held too.
+					const request = "git-receive-pack /split-control.git\0host=127.0.0.1\0";
+					const split = createConnection({ host: "127.0.0.1", port: proxy.port });
+					split.on("error", () => undefined);
+					await new Promise<void>((resolve) => split.once("connect", () => resolve()));
+					const partialBefore = proxy.partialFirstPackets;
+					split.write((request.length + 4).toString(16).padStart(4, "0"));
+					const deadline = Date.now() + FIXTURE_WAIT;
+					while (proxy.partialFirstPackets <= partialBefore) {
+						if (Date.now() > deadline) throw new Error("push hold proxy: no first packet arrived without its payload");
+						await Bun.sleep(10);
+					}
+					split.write(request);
+					await proxy.untilHeld(1);
+					split.destroy();
+					proxy.release();
+
 					// The late initializer reads the descriptor as absent through the proxy and its push
 					// waits there before any ref advertisement; the early one initializes directly. Released, the late push
 					// meets the identical descriptor blob, and Git answers `=` before any lease check (ep-g08).
+					const lateStarted = proxy.elapsed();
 					const pending = initializeClaimStorage({ ...fixture.options(late), remote: fixture.viaPort(proxy.port) });
-					await proxy.untilHeld(1);
+					let lateEnded: number | undefined;
+					void pending
+						.finally(() => {
+							lateEnded = proxy.elapsed();
+						})
+						.catch(() => undefined);
+					await proxy.untilHeld(1).catch(async (error: unknown) => {
+						// Diagnosis: without a held push the late initializer ended, or still hangs, before pushing; its
+						// outcome and the proxy's connection log name the step (routing check, descriptor read, blob write).
+						const settled = pending.catch((reason: unknown) => ({ rejected: String(reason) }));
+						// Short, so that this message still beats TEST_TIMEOUT after an exhausted FIXTURE_WAIT.
+						const outcome = await Promise.race([settled, Bun.sleep(1_000).then(() => "still pending")]);
+						const late = `started @${lateStarted} ms, ended @${lateEnded ?? "-"} ms with ${JSON.stringify(outcome)}`;
+						throw new Error(
+							`${error instanceof Error ? error.message : error}; late initializer ${late}; ${proxy.connectionLog}`,
+						);
+					});
 					const created = await initializeClaimStorage(fixture.options(early));
 					expect(created).toEqual({ kind: "created", descriptor: descriptorOf(format) });
 					const landed = await fixture.serverRefs();

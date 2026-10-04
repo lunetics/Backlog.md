@@ -1,16 +1,16 @@
 /**
  * Level G: a claim Git command that exceeds `attempt_timeout_ms` is killed together with its transport helpers, and the
  * call returns within the attempt bound. The real `backlog claim … --json` subprocess against a loopback endpoint that
- * accepts and never answers (claim-git-fixture.ts StallProxy): `git://` as the control that returns today (k19-01),
- * `https://` (k19-02), `http://` (k19-03) and `ssh://` with a GIT_SSH_COMMAND stand-in that sleeps on the transport
- * call (k19-04; the image has no ssh client); a helper that escapes the group with `setsid` and keeps stderr open past
- * the kill, bounded by the margin ε (k19-05); and a push that stalls in receive-pack while every read is served, over
- * an ssh stand-in that runs upload-pack on the fixture repository and sleeps on receive-pack (k19-06, per storage
+ * accepts and never answers (claim-git-fixture.ts StallProxy): `git://` as the control that returns today (stall-git-control),
+ * `https://` (stall-https), `http://` (stall-http) and `ssh://` with a GIT_SSH_COMMAND stand-in that sleeps on the transport
+ * call (stall-ssh; the image has no ssh client); a helper that escapes the group with `setsid` and keeps stderr open past
+ * the kill, bounded by the margin ε (stall-escaped-helper); and a push that stalls in receive-pack while every read is served, over
+ * an ssh stand-in that runs upload-pack on the fixture repository and sleeps on receive-pack (stall-receive-pack, per storage
  * format). Pinned: the call returns within the bound with the unchanged mapping (`unreachable` for a read, `unknown`
  * for a push, the retry rule of the execution README) and a /proc scan right after the return finds no process of the
  * call. Processes are attributed by an environment marker that `gitEnvironment()` passes on to git, every helper and
  * the stand-ins, never by "new pid". Every row starts with a positive control: the transport's helper is seen alive
- * while the call runs (k19-05 also the escaped process); k19-01, k19-04 and k19-06 add a call against the live
+ * while the call runs (stall-escaped-helper also the escaped process); stall-git-control, stall-ssh and stall-receive-pack add a call against the live
  * loopback endpoint. Linux only (/proc, util-linux setsid). Harness: adapted copies with "adapted from" notes; every
  * existing file stays unchanged.
  */
@@ -35,7 +35,7 @@ type Call = {
 	doc: unknown;
 	/** Name of every marked process seen while the call ran (`git <subcommand>` for git), the CLI itself excluded. */
 	seen: string[];
-	/** A marked `sleep` that leads its own session was seen while the call ran (k19-05). */
+	/** A marked `sleep` that leads its own session was seen while the call ran (stall-escaped-helper). */
 	escapedSeen: boolean;
 	/** Marked processes alive right after the return (or at the cap), before the cleanup. */
 	left: string[];
@@ -254,7 +254,7 @@ async function endMarked(mark: string): Promise<void> {
 /**
  * One CLI call with `--json` under a fresh marker: polls the marked processes while it runs, reports whether it
  * returned before CALL_CAP, the elapsed time, the document and the marked processes alive right after the return.
- * A call that did not return is killed with every marked process; each call prints one `K19 {…}` evidence line.
+ * A call that did not return is killed with every marked process; each call prints one `TRANSPORT-STALL {…}` evidence line.
  */
 async function runCall(cwd: string, args: readonly string[], extra: Record<string, string> = {}): Promise<Call> {
 	const mark = `${process.pid}-${++calls}`;
@@ -301,7 +301,7 @@ async function runCall(cwd: string, args: readonly string[], extra: Record<strin
 		left,
 	};
 	const evidence = { command: args.slice(0, 2).join(" "), ...call, doc: undefined, code: field(call.doc, "code") };
-	console.log(`K19 ${JSON.stringify({ ...evidence, status: field(call.doc, "status") })}`);
+	console.log(`TRANSPORT-STALL ${JSON.stringify({ ...evidence, status: field(call.doc, "status") })}`);
 	return call;
 }
 
@@ -309,7 +309,7 @@ function within(call: Call, bound: number): boolean {
 	return call.returned && call.elapsedMs !== null && call.elapsedMs <= bound;
 }
 
-/** Return, bound, the error document and the survivors of a read (k19-01 to k19-05). */
+/** Return, bound, the error document and the survivors of a read (stall-git-control to stall-escaped-helper). */
 function readView(call: Call): Record<string, unknown> {
 	return {
 		returned: call.returned,
@@ -411,7 +411,7 @@ class TransportCase {
 	 * name. No receive hooks: this suite needs no gates, and a hook start would only slow the pushes under test.
 	 */
 	async coordination(format: Format): Promise<string> {
-		const name = `k19-${format}-${++repositories}`;
+		const name = `stall-${format}-${++repositories}`;
 		const repo = join(gitServer().repos, `${name}.git`);
 		await gitServer().git(gitServer().repos, ["init", "--quiet", "--bare", repo]);
 		await gitServer().git(repo, ["config", "daemon.receivepack", "true"]);
@@ -445,9 +445,9 @@ async function withCase(label: string, body: (fixture: TransportCase) => Promise
 
 describeOnLinux("a timed-out claim Git call ends its transport helpers and returns within the bound", () => {
 	test(
-		"k19-01: git:// control — a stalled read returns unreachable within the bound with no process left",
+		"stall-git-control: git:// control — a stalled read returns unreachable within the bound with no process left",
 		async () => {
-			await withCase("k19-01", async (fixture) => {
+			await withCase("stall-git-control", async (fixture) => {
 				// Positive control (catches: a broken project, CLI or fixture): the same read against the live
 				// loopback endpoint lists.
 				const name = await fixture.coordination("blob");
@@ -471,7 +471,7 @@ describeOnLinux("a timed-out claim Git call ends its transport helpers and retur
 
 	for (const scheme of ["https", "http"] as const) {
 		test(
-			`${scheme === "https" ? "k19-02" : "k19-03"}: ${scheme}:// — a stalled read returns unreachable within the bound and leaves no helper`,
+			`${scheme === "https" ? "stall-https" : "stall-http"}: ${scheme}:// — a stalled read returns unreachable within the bound and leaves no helper`,
 			async () => {
 				await withCase(scheme, async (fixture) => {
 					const project = await fixture.project("stalled", `${scheme}://127.0.0.1:${proxy().port}/x.git`);
@@ -490,9 +490,9 @@ describeOnLinux("a timed-out claim Git call ends its transport helpers and retur
 	}
 
 	test(
-		"k19-04: ssh:// — a read stalled in the ssh command returns unreachable within the bound and leaves no helper",
+		"stall-ssh: ssh:// — a read stalled in the ssh command returns unreachable within the bound and leaves no helper",
 		async () => {
-			await withCase("k19-04", async (fixture) => {
+			await withCase("stall-ssh", async (fixture) => {
 				// Positive control (catches: a broken stand-in or endpoint): the same read over ssh against the live
 				// fixture repository lists.
 				const name = await fixture.coordination("blob");
@@ -518,9 +518,9 @@ describeOnLinux("a timed-out claim Git call ends its transport helpers and retur
 	);
 
 	test(
-		"k19-05: a helper that escapes the group and keeps stderr open cannot hold the call past the margin",
+		"stall-escaped-helper: a helper that escapes the group and keeps stderr open cannot hold the call past the margin",
 		async () => {
-			await withCase("k19-05", async (fixture) => {
+			await withCase("stall-escaped-helper", async (fixture) => {
 				const project = await fixture.project("escaped", `ssh://git@127.0.0.1:${proxy().port}/x.git`);
 				const call = await runCall(project, ["claim", "list"], { GIT_SSH_COMMAND: await fixture.ssh("escape") });
 				// Positive control (catches: an escape that never happened — then the row would pass on the group kill
@@ -545,25 +545,29 @@ describeOnLinux("a timed-out claim Git call ends its transport helpers and retur
 
 	for (const format of FORMATS) {
 		test(
-			`k19-06 (${format}): a push stalled in receive-pack ends unknown after ${ATTEMPTS} sends within the bound and leaves no helper`,
+			`stall-receive-pack (${format}): a push stalled in receive-pack ends unknown after ${ATTEMPTS} sends within the bound and leaves no helper`,
 			async () => {
-				await withCase(`k19-06-${format}`, async (fixture) => {
+				await withCase(`stall-receive-pack-${format}`, async (fixture) => {
 					const name = await fixture.coordination(format);
 					const endpoint = `ssh://git@127.0.0.1:${gitServer().port}/${name}.git`;
 					const project = await fixture.project("agent", endpoint, { format, tickets: [TICKET, CONTROL_TICKET] });
 					const context = await newContext(fixture.parent);
 					// Positive control (catches: a broken stand-in, context or project): the same acquire of another
 					// ticket over the fully serving ssh command applies.
-					const control = await runCall(project, acquireArgs(CONTROL_TICKET, context, `op-k19-06-control-${format}`), {
-						GIT_SSH_COMMAND: await fixture.ssh("serve"),
-					});
+					const control = await runCall(
+						project,
+						acquireArgs(CONTROL_TICKET, context, `op-stall-receive-pack-control-${format}`),
+						{
+							GIT_SSH_COMMAND: await fixture.ssh("serve"),
+						},
+					);
 					expect({
 						exit: control.exit,
 						outcome: field(control.doc, "outcome"),
 						sends: field(control.doc, "sends"),
 						ref: (await fixture.serverRef(name, `refs/claims/${CONTROL_TICKET}`)) !== null,
 					}).toEqual({ exit: 0, outcome: "applied", sends: 1, ref: true });
-					const operationId = `op-k19-06-${format}`;
+					const operationId = `op-stall-receive-pack-${format}`;
 					const call = await runCall(project, acquireArgs(TICKET, context, operationId), {
 						GIT_SSH_COMMAND: await fixture.ssh("serve-stall"),
 					});

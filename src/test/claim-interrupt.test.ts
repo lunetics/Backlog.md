@@ -5,12 +5,12 @@
  * timeout fires inside the window); once the transport's helper is seen, the test sends the signal to the CLI's GROUP,
  * as a terminal does. Pinned: the command ends by the signal within 2 s (the re-raise reaches signal-exit, loaded with
  * proper-lockfile, as the only listener, and it ends the process) and no process of the call is alive at +100 ms, +1 s
- * and +3 s — `git://` (k21-01, git itself), `https://` (k21-02), `http://` (k21-03) and `ssh://` with a
- * GIT_SSH_COMMAND stand-in that sleeps (k21-04) under SIGINT; SIGTERM (k21-05) and SIGHUP (k21-06) over https; a push
- * stalled in receive-pack behind served reads (k21-07). `mcp start` with a `claim_list` call in flight keeps its own
- * shutdown: exit 0 within 5 s and no process of the call left (k21-08; a minimal stdio JSON-RPC client, because the
+ * and +3 s — `git://` (interrupt-sigint-git, git itself), `https://` (interrupt-sigint-https), `http://` (interrupt-sigint-http) and `ssh://` with a
+ * GIT_SSH_COMMAND stand-in that sleeps (interrupt-sigint-ssh) under SIGINT; SIGTERM (interrupt-sigterm-https) and SIGHUP (interrupt-sighup-https) over https; a push
+ * stalled in receive-pack behind served reads (interrupt-receive-pack). `mcp start` with a `claim_list` call in flight keeps its own
+ * shutdown: exit 0 within 5 s and no process of the call left (interrupt-mcp-shutdown; a minimal stdio JSON-RPC client, because the
  * server must lead its own group). In-process, the module holds one listener per signal only while a call is in flight
- * (k21-09, relative to the test process's own baseline). k21-10 is the positive control without a signal. Processes are
+ * (interrupt-listener-baseline, relative to the test process's own baseline). interrupt-control is the positive control without a signal. Processes are
  * attributed by an environment marker that `gitEnvironment()` passes on to git, every helper and the stand-ins, never
  * by "new pid". Every signal row starts with a positive control: the helper was alive before the signal. Linux only
  * (/proc). Harness: adapted copies with "adapted from" notes; every existing file stays unchanged.
@@ -61,7 +61,7 @@ const MCP_BOUND = 5_000;
 /** The leftover scans after the signal (git and its helpers end ≤ 13 ms after the group forward). */
 const SCANS = { at100: 100, at1000: 1_000, at3000: 3_000 } as const;
 const NONE_LEFT: Record<ScanKey, string[]> = { at100: [], at1000: [], at3000: [] };
-/** k21-09: the attempt timeout of the in-process call; the timeout group kill ends it, so the removal is observed. */
+/** interrupt-listener-baseline: the attempt timeout of the in-process call; the timeout group kill ends it, so the removal is observed. */
 const UNIT_TIMEOUT = 1_500;
 /** A command without a signal still running here is reported as not ended; the test then ends it. */
 const LIVE_CAP = 20_000;
@@ -197,7 +197,7 @@ function subcommandOf(argv: readonly string[]): string {
 }
 
 /** Live processes other than this test whose environment carries `mark`; zombies are not alive. */
-// adapted from claim-transport.test.ts (marked): no session field, the test process itself is skipped (k21-09)
+// adapted from claim-transport.test.ts (marked): no session field, the test process itself is skipped (interrupt-listener-baseline)
 async function marked(mark: string): Promise<Proc[]> {
 	const found: Proc[] = [];
 	for (const entry of await readdir("/proc")) {
@@ -291,7 +291,7 @@ async function interrupt(child: Child, mark: string, signal: Signal, helperSeen:
 
 /**
  * One CLI call with `--json` under a fresh marker as the leader of its own process group and session (like a job of
- * an interactive shell); once `helper` is seen, `signal` goes to the group. Prints one `K21 {…}` evidence line.
+ * an interactive shell); once `helper` is seen, `signal` goes to the group. Prints one `INTERRUPT {…}` evidence line.
  */
 async function interruptCli(
 	cwd: string,
@@ -315,7 +315,7 @@ async function interruptCli(
 	const call = await interrupt(child, mark, signal, helperSeen);
 	const doc = parseDocument(await Promise.race([stdout, Bun.sleep(500).then(() => "")]));
 	const evidence = { command: args.slice(0, 2).join(" "), signal, helper, ...call, code: field(doc, "code") ?? null };
-	console.log(`K21 ${JSON.stringify(evidence)}`);
+	console.log(`INTERRUPT ${JSON.stringify(evidence)}`);
 	return call;
 }
 
@@ -382,11 +382,11 @@ async function interruptMcp(
 		// the pipe closed with the server
 	}
 	const evidence = { command: "mcp start · claim_list", signal, helper, initialized, ...call };
-	console.log(`K21 ${JSON.stringify(evidence)}`);
+	console.log(`INTERRUPT ${JSON.stringify(evidence)}`);
 	return { ...call, initialized };
 }
 
-/** One CLI call with `--json` under a fresh marker, spawned like the signal rows, no signal (k21-10, fixtures). */
+/** One CLI call with `--json` under a fresh marker, spawned like the signal rows, no signal (interrupt-control, fixtures). */
 async function runCli(
 	cwd: string,
 	args: readonly string[],
@@ -408,7 +408,7 @@ async function runCli(
 	const doc = parseDocument(await Promise.race([stdout, Bun.sleep(2_000).then(() => "")]));
 	const run = { exit: finished ? child.exitCode : null, doc, left };
 	const evidence = { command: args.slice(0, 2).join(" "), exit: run.exit, kind: field(doc, "kind") ?? null, left };
-	console.log(`K21 ${JSON.stringify(evidence)}`);
+	console.log(`INTERRUPT ${JSON.stringify(evidence)}`);
 	return run;
 }
 
@@ -486,7 +486,7 @@ class InterruptCase {
 
 	/** An initialized blob coordination area on a fresh bare repository of the fixture server, over git://; its name. */
 	async coordination(): Promise<string> {
-		const name = `k21-blob-${++repositories}`;
+		const name = `interrupt-blob-${++repositories}`;
 		const repo = join(gitServer().repos, `${name}.git`);
 		await gitServer().git(gitServer().repos, ["init", "--quiet", "--bare", repo]);
 		await gitServer().git(repo, ["config", "daemon.receivepack", "true"]);
@@ -514,12 +514,12 @@ async function withCase(label: string, body: (fixture: InterruptCase) => Promise
 
 /** The stalled reads: `git://` has no helper (git itself is seen), http(s) runs git-remote-http, ssh the stand-in. */
 const READS = [
-	{ row: "k21-01", scheme: "git", signal: "SIGINT", helper: "git ls-remote" },
-	{ row: "k21-02", scheme: "https", signal: "SIGINT", helper: "git-remote-http" },
-	{ row: "k21-03", scheme: "http", signal: "SIGINT", helper: "git-remote-http" },
-	{ row: "k21-04", scheme: "ssh", signal: "SIGINT", helper: "sleep" },
-	{ row: "k21-05", scheme: "https", signal: "SIGTERM", helper: "git-remote-http" },
-	{ row: "k21-06", scheme: "https", signal: "SIGHUP", helper: "git-remote-http" },
+	{ row: "interrupt-sigint-git", scheme: "git", signal: "SIGINT", helper: "git ls-remote" },
+	{ row: "interrupt-sigint-https", scheme: "https", signal: "SIGINT", helper: "git-remote-http" },
+	{ row: "interrupt-sigint-http", scheme: "http", signal: "SIGINT", helper: "git-remote-http" },
+	{ row: "interrupt-sigint-ssh", scheme: "ssh", signal: "SIGINT", helper: "sleep" },
+	{ row: "interrupt-sigterm-https", scheme: "https", signal: "SIGTERM", helper: "git-remote-http" },
+	{ row: "interrupt-sighup-https", scheme: "https", signal: "SIGHUP", helper: "git-remote-http" },
 ] as const;
 
 describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => {
@@ -552,15 +552,15 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 	}
 
 	test(
-		"k21-07: SIGINT to the group of a claim acquire whose push stalls in receive-pack ends it by SIGINT and leaves no process of the call",
+		"interrupt-receive-pack: SIGINT to the group of a claim acquire whose push stalls in receive-pack ends it by SIGINT and leaves no process of the call",
 		async () => {
-			await withCase("k21-07", async (fixture) => {
+			await withCase("interrupt-receive-pack", async (fixture) => {
 				const name = await fixture.coordination();
 				const endpoint = `ssh://git@127.0.0.1:${gitServer().port}/${name}.git`;
 				const project = await fixture.project("agent", endpoint, [TICKET]);
 				const context = await newContext(fixture.parent);
 				const args = ["claim", "acquire", TICKET, "--owner", OWNER, "--context", context];
-				const options = ["--ttl-ms", String(TTL), "--operation-id", "op-k21-07"];
+				const options = ["--ttl-ms", String(TTL), "--operation-id", "op-interrupt-receive-pack"];
 				const call = await interruptCli(project, [...args, ...options], "SIGINT", "sleep", {
 					GIT_SSH_COMMAND: await fixture.ssh("serve-stall"),
 				});
@@ -578,9 +578,9 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 	);
 
 	test(
-		"k21-08: SIGINT to the group of mcp start with a claim_list call in flight keeps its own shutdown (exit 0) and leaves no process of the call",
+		"interrupt-mcp-shutdown: SIGINT to the group of mcp start with a claim_list call in flight keeps its own shutdown (exit 0) and leaves no process of the call",
 		async () => {
-			await withCase("k21-08", async (fixture) => {
+			await withCase("interrupt-mcp-shutdown", async (fixture) => {
 				const project = await fixture.project("stalled", `https://127.0.0.1:${proxy().port}/x.git`);
 				const call = await interruptMcp(project, "SIGINT", "git-remote-http");
 				// Positive control (catches: a broken client or server start, a tool call that never reached Git): the
@@ -602,9 +602,9 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 	);
 
 	test(
-		"k21-09: in-process, the module holds one listener per signal only while a claim Git call is in flight",
+		"interrupt-listener-baseline: in-process, the module holds one listener per signal only while a claim Git call is in flight",
 		async () => {
-			await withCase("k21-09", async (fixture) => {
+			await withCase("interrupt-listener-baseline", async (fixture) => {
 				const repository = join(fixture.root, "unit");
 				await mkdir(repository);
 				await gitServer().git(repository, ["init", "--quiet"]);
@@ -635,7 +635,9 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 				}
 				const after = listenerCounts();
 				const view = { during: delta(during, before), after: delta(after, before) };
-				console.log(`K21 ${JSON.stringify({ command: "probeClaimRefs", lsRemoteSeen, result, before, ...view })}`);
+				console.log(
+					`INTERRUPT ${JSON.stringify({ command: "probeClaimRefs", lsRemoteSeen, result, before, ...view })}`,
+				);
 				// Positive control (catches: a row that passes because the call was never observed in flight — a refused
 				// endpoint, a git that never started): the ls-remote was alive while the call ran, and the call ended as
 				// a failure (its timeout).
@@ -653,9 +655,9 @@ describeOnLinux("a terminal signal reaches the in-flight claim Git call", () => 
 	);
 
 	test(
-		"k21-10: positive control — the same claim list against the live git:// endpoint, without a signal, lists and leaves no process",
+		"interrupt-control: positive control — the same claim list against the live git:// endpoint, without a signal, lists and leaves no process",
 		async () => {
-			await withCase("k21-10", async (fixture) => {
+			await withCase("interrupt-control", async (fixture) => {
 				const name = await fixture.coordination();
 				const project = await fixture.project("live", gitServer().url(name));
 				const listed = await runCli(project, ["claim", "list"]);

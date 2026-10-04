@@ -1,10 +1,10 @@
 /**
  * A claim Git call that feeds its stdin leaves no process behind when the feed fails. In-process through the storage
  * boundary, against the loopback Git daemon of claim-git-fixture.ts: `initializeClaimStorage`, whose descriptor write
- * is `git hash-object -w --stdin`, with the test seam `seams.beforeStdinWrite(child)` throwing a marked error (k23-a);
- * the same call without the seam as the control (k23-b); and a document write of an opened store whose input is larger
+ * is `git hash-object -w --stdin`, with the test seam `seams.beforeStdinWrite(child)` throwing a marked error (feed-throw);
+ * the same call without the seam as the control (feed-throw-control); and a document write of an opened store whose input is larger
  * than a pipe buffer, fed to a git the seam stops and kills before it reads, so the pending feed fails asynchronously
- * with EPIPE (k23-c). Pinned: the mapped result, the call registered as in flight at the feed (one more listener per
+ * with EPIPE (feed-large-epipe). Pinned: the mapped result, the call registered as in flight at the feed (one more listener per
  * signal at the seam, as for signal forwarding), no process of the call alive at +100 ms, +1 s and +3 s after it
  * returned, and the test process's listener baseline again afterwards. Nothing unhandled is pinned by the runner
  * itself: bun test fails the running test at an unhandled rejection, and a process listener never sees it (measured on
@@ -50,9 +50,9 @@ const SCANS = { at100: 100, at1000: 1_000, at3000: 3_000 } as const;
 const NONE_LEFT: Record<ScanKey, string[]> = { at100: [], at1000: [], at3000: [] };
 const BASELINE: Record<Signal, number> = { SIGINT: 0, SIGTERM: 0, SIGHUP: 0 };
 const IN_FLIGHT: Record<Signal, number> = { SIGINT: 1, SIGTERM: 1, SIGHUP: 1 };
-/** k23-c: an input far above a pipe buffer (64 KiB on Linux, at most /proc/sys/fs/pipe-max-size = 1 MiB). */
+/** feed-large-epipe: an input far above a pipe buffer (64 KiB on Linux, at most /proc/sys/fs/pipe-max-size = 1 MiB). */
 const LARGE_INPUT = 4 * 1024 * 1024;
-/** k23-c: the stopped git is killed this long after the seam, while the larger part of the feed is still pending. */
+/** feed-large-epipe: the stopped git is killed this long after the seam, while the larger part of the feed is still pending. */
 const KILL_DELAY = 200;
 /** The environment marker of one call; it reaches git through gitEnvironment(), which copies process.env. */
 const MARK = "BACKLOG_K23_CALL";
@@ -192,7 +192,7 @@ class FeedCase {
 	static async create(label: string): Promise<FeedCase> {
 		const root = await mkdtemp(join(FIXTURE_ROOT, `claim-feed-${label}-`));
 		// adapted from claim-interrupt.test.ts (InterruptCase.coordination): a bare repository that accepts pushes
-		const name = `k23-blob-${++repositories}`;
+		const name = `feed-blob-${++repositories}`;
 		const repo = join(gitServer().repos, `${name}.git`);
 		await gitServer().git(gitServer().repos, ["init", "--quiet", "--bare", repo]);
 		await gitServer().git(repo, ["config", "daemon.receivepack", "true"]);
@@ -233,10 +233,10 @@ async function withCase(label: string, body: (fixture: FeedCase) => Promise<void
 
 describeOnLinux("a claim Git call whose stdin feed fails leaves no process behind", () => {
 	test(
-		"k23-a: a throw while feeding the descriptor write ends the call not-sent within its bound and leaves no git behind",
+		"feed-throw: a throw while feeding the descriptor write ends the call not-sent within its bound and leaves no git behind",
 		async () => {
-			await withCase("k23-a", async (fixture) => {
-				const thrown = "K23 seam: the stdin write throws";
+			await withCase("feed-throw", async (fixture) => {
+				const thrown = "feed seam: the stdin write throws";
 				const seam: { calls: number; atFeed: Record<Signal, number> | null } = { calls: 0, atFeed: null };
 				const base = listenerCounts();
 				const seams: FeedSeams = {
@@ -257,7 +257,7 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 					listeners: call.listeners,
 					descriptor: await fixture.descriptor(),
 				};
-				console.log(`K23 ${JSON.stringify({ row: "k23-a", elapsedMs: call.elapsedMs, ...view })}`);
+				console.log(`FEED ${JSON.stringify({ row: "feed-throw", elapsedMs: call.elapsedMs, ...view })}`);
 				// Positive control (catches: a row that passes because the feed never ran through the seam — a call
 				// that failed before the descriptor write, a seam that is not wired): the seam ran once, for the
 				// descriptor write.
@@ -286,9 +286,9 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 	);
 
 	test(
-		"k23-b: control — the same descriptor write without the seam initializes and leaves no process behind",
+		"feed-throw-control: control — the same descriptor write without the seam initializes and leaves no process behind",
 		async () => {
-			await withCase("k23-b", async (fixture) => {
+			await withCase("feed-throw-control", async (fixture) => {
 				const call = await fed(() => initializeClaimStorage(fixture.options));
 				const view = {
 					result: call.result,
@@ -296,7 +296,7 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 					listeners: call.listeners,
 					descriptor: await fixture.descriptor(),
 				};
-				console.log(`K23 ${JSON.stringify({ row: "k23-b", elapsedMs: call.elapsedMs, ...view })}`);
+				console.log(`FEED ${JSON.stringify({ row: "feed-throw-control", elapsedMs: call.elapsedMs, ...view })}`);
 				// (catches: a reordered feed that disturbs the normal path — a group ended before git
 				// read its input, a listener kept after the call, a changed result): the descriptor is created, no
 				// process of the call is left, the listener baseline is back.
@@ -313,9 +313,9 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 	);
 
 	test(
-		"k23-c: a feed larger than the pipe that git never reads ends the write not-sent, with no unhandled rejection and no git behind",
+		"feed-large-epipe: a feed larger than the pipe that git never reads ends the write not-sent, with no unhandled rejection and no git behind",
 		async () => {
-			await withCase("k23-c", async (fixture) => {
+			await withCase("feed-large-epipe", async (fixture) => {
 				const initialized = await initializeClaimStorage(fixture.options);
 				const seam: { opened: string | null; calls: number; killed: boolean | string } = {
 					opened: null,
@@ -345,7 +345,7 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 					seam.opened = opened.kind;
 					if (opened.kind !== "open") return { kind: `store ${opened.kind}` };
 					const payload = { claimState: 1, status: "free", claimGeneration: 1, padding: "x".repeat(LARGE_INPUT) };
-					const change = { operationId: "op-k23-c", receipt: { kind: "k23-c" }, payload };
+					const change = { operationId: "op-feed-large-epipe", receipt: { kind: "feed-large-epipe" }, payload };
 					return opened.store.write({ kind: "absent", ticket: TICKET }, change);
 				});
 				const view = {
@@ -356,7 +356,7 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 					listeners: call.listeners,
 					ticketRef: await fixture.serverRef(`refs/claims/${TICKET}`),
 				};
-				console.log(`K23 ${JSON.stringify({ row: "k23-c", elapsedMs: call.elapsedMs, ...view })}`);
+				console.log(`FEED ${JSON.stringify({ row: "feed-large-epipe", elapsedMs: call.elapsedMs, ...view })}`);
 				// Positive control (catches: a row that passes because the large feed never met a git that stopped
 				// reading — a seam that is not wired, a store that failed before the document write, a git already
 				// gone): the coordination area was initialized and opened, the seam ran for the document write, and
@@ -390,15 +390,15 @@ describeOnLinux("a claim Git call whose stdin feed fails leaves no process behin
 // ---------------------------------------------------------------------------------------------------------------
 // A failed feed defers to git's own ending. When git ends on its own before it reads its input, the pending feed fails
 // with EPIPE; the call then reports git's own result (its code and its stderr), never the feed's EPIPE, and still
-// leaves nothing behind (k23-d). The trigger is natural: the client checkout stops being a repository after the store
+// leaves nothing behind (feed-large-git-message). The trigger is natural: the client checkout stops being a repository after the store
 // opened (its .git/HEAD no longer names a ref). `git config --get-regexp`, the write's routing check, then runs outside
 // a repository and finds no rewrite; `git hash-object -w --stdin`, the write's first fed call, stops at startup with
 // "not a git repository" before it reads stdin (measured: a 4 MiB writer gets SIGPIPE, git exits 128). A configuration
-// that git cannot parse would already fail the routing check, so the write would never feed. k23-e is the same large
+// that git cannot parse would already fail the routing check, so the write would never feed. feed-large-control is the same large
 // write against the intact repository.
 // ---------------------------------------------------------------------------------------------------------------
 
-/** k23-d: git's own message once the client checkout is no repository. */
+/** feed-large-git-message: git's own message once the client checkout is no repository. */
 const NO_REPOSITORY = "not a git repository";
 
 /** The document change of a write whose input is LARGE_INPUT bytes and more. */
@@ -425,9 +425,9 @@ function observedFeeds(): { seams: FeedSeams; seen: { calls: number; gitExit: nu
 
 describeOnLinux("a failed feed reports git's own result when git ended on its own", () => {
 	test(
-		"k23-d: a large write to a git that stops before it reads ends not-sent with git's own message, never EPIPE, no git behind",
+		"feed-large-git-message: a large write to a git that stops before it reads ends not-sent with git's own message, never EPIPE, no git behind",
 		async () => {
-			await withCase("k23-d", async (fixture) => {
+			await withCase("feed-large-git-message", async (fixture) => {
 				const initialized = await initializeClaimStorage(fixture.options);
 				const enclosing = await gitServer().git(fixture.root, ["rev-parse", "--git-dir"], undefined, false);
 				const { seams, seen } = observedFeeds();
@@ -437,7 +437,7 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 					opened = store.kind;
 					if (store.kind !== "open") return { kind: `store ${store.kind}` };
 					await Bun.write(join(fixture.options.repository, ".git", "HEAD"), "not a ref\n");
-					return store.store.write({ kind: "absent", ticket: TICKET }, largeChange("op-k23-d"));
+					return store.store.write({ kind: "absent", ticket: TICKET }, largeChange("op-feed-large-git-message"));
 				});
 				const result = call.result as { kind?: unknown; reason?: unknown };
 				const reason = typeof result.reason === "string" ? result.reason : "";
@@ -450,8 +450,8 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 					listeners: call.listeners,
 					ticketRef: await fixture.serverRef(`refs/claims/${TICKET}`),
 				};
-				const evidence = { row: "k23-d", elapsedMs: call.elapsedMs, ...seen, reason, ...view };
-				console.log(`K23 ${JSON.stringify(evidence)}`);
+				const evidence = { row: "feed-large-git-message", elapsedMs: call.elapsedMs, ...seen, reason, ...view };
+				console.log(`FEED ${JSON.stringify(evidence)}`);
 				// Positive control (catches: a row that passes because the write never fed a git that ended on its own —
 				// a routing check that failed first, a git that found an enclosing repository and read its input, a git
 				// that was killed instead): the coordination area was initialized and opened, no repository encloses the
@@ -483,15 +483,15 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 	);
 
 	test(
-		"k23-e: control — the same large write against the intact repository is written and leaves no process behind",
+		"feed-large-control: control — the same large write against the intact repository is written and leaves no process behind",
 		async () => {
-			await withCase("k23-e", async (fixture) => {
+			await withCase("feed-large-control", async (fixture) => {
 				const initialized = await initializeClaimStorage(fixture.options);
 				const { seams, seen } = observedFeeds();
 				const call = await fed(async () => {
 					const store = await openClaimStore(withSeams(fixture.options, seams));
 					if (store.kind !== "open") return { kind: `store ${store.kind}` };
-					return store.store.write({ kind: "absent", ticket: TICKET }, largeChange("op-k23-e"));
+					return store.store.write({ kind: "absent", ticket: TICKET }, largeChange("op-feed-large-control"));
 				});
 				const result = call.result as { kind?: unknown; root?: unknown };
 				const view = {
@@ -503,7 +503,7 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 					listeners: call.listeners,
 					ticketRef: await fixture.serverRef(`refs/claims/${TICKET}`),
 				};
-				console.log(`K23 ${JSON.stringify({ row: "k23-e", elapsedMs: call.elapsedMs, ...view })}`);
+				console.log(`FEED ${JSON.stringify({ row: "feed-large-control", elapsedMs: call.elapsedMs, ...view })}`);
 				// The happy path of a large feed (catches: a deferred or watched feed that disturbs a git that reads its
 				// whole input — a group ended while git still reads, an error set on success, a listener kept): the
 				// document is written in one fed call that git ends with 0, the ticket ref names the written root, no
@@ -527,28 +527,28 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 // A git that ended on its own reports its own result, even while a member of its group holds a pipe. When git ends on
 // its own while a member of its process group (a transport helper's child) still holds git's stderr, the call's pipes
 // stay open. From git's own end they get the settle window to reach EOF; then they are cut, the group is ended before
-// the call returns, and the call reports git's own result, not a timeout (k25-a), with no member of the group left
-// behind (k25-b). While a member lives, the group id cannot be reused (POSIX: a process ID that is a live group's ID is
+// the call returns, and the call reports git's own result, not a timeout (held-pipe-own-result), with no member of the group left
+// behind (held-pipe-no-member-left). While a member lives, the group id cannot be reused (POSIX: a process ID that is a live group's ID is
 // not reused until the group's lifetime ends), so the kill reaches only this call's processes. The trigger is an ssh
 // stand-in that leaves such a member and exits at once. A stand-in that keeps git itself alive still runs into the
-// killer (k25-c); a git whose pipes close when it ends returns at once, without the window (k25-d). k25-a and k25-b
-// supersede k23-f, which pinned the timed-out result of the same trigger.
+// killer (held-pipe-timeout-control); a git whose pipes close when it ends returns at once, without the window (held-pipe-no-wait-control). held-pipe-own-result and held-pipe-no-member-left
+// supersede feed-large-timed-out, which pinned the timed-out result of the same trigger.
 // ---------------------------------------------------------------------------------------------------------------
 
-/** k25: the per-command timeout of the calls over a stand-in; k25-c runs into it, k25-a returns well before it. */
+/** held-pipe: the per-command timeout of the calls over a stand-in; held-pipe-timeout-control runs into it, held-pipe-own-result returns well before it. */
 const KILLER_TIMEOUT = 1_500;
-/** k25: the interval of the member checks while a call over a stand-in runs. */
+/** held-pipe: the interval of the member checks while a call over a stand-in runs. */
 const SAMPLE_MS = 10;
-/** k25-c: the scan of a call still running this long after it started, while git itself waits for the killer. */
+/** held-pipe-timeout-control: the scan of a call still running this long after it started, while git itself waits for the killer. */
 const MIDWAY = 750;
-/** k25: a claim endpoint over ssh, answered by the stand-ins below. */
-const SSH_REMOTE = "ssh://k25.invalid/k25.git";
-/** k25-a: the line the stand-in writes to the stderr it shares with git, before it forks. */
-const STAND_IN_TEXT = "k25 stand-in: the transport ended";
-/** k25-d: git's own message for an endpoint that names no repository. */
+/** held-pipe: a claim endpoint over ssh, answered by the stand-ins below. */
+const SSH_REMOTE = "ssh://held-pipe.invalid/held-pipe.git";
+/** held-pipe-own-result: the line the stand-in writes to the stderr it shares with git, before it forks. */
+const STAND_IN_TEXT = "held-pipe stand-in: the transport ended";
+/** held-pipe-no-wait-control: git's own message for an endpoint that names no repository. */
 const NOT_A_REPOSITORY = "does not appear to be a git repository";
 /**
- * k25-a, k25-b: a GIT_SSH_COMMAND stand-in (the image has no ssh client), run as `sh <file>`. It answers Git's `-G`
+ * held-pipe-own-result, held-pipe-no-member-left: a GIT_SSH_COMMAND stand-in (the image has no ssh client), run as `sh <file>`. It answers Git's `-G`
  * variant probe as OpenSSH does, writes STAND_IN_TEXT to stderr, starts a sleep that stays in git's process group and
  * keeps the inherited stderr open, writes the sleep's pid to `memberFile`, and exits 255 at once; git reads EOF on its
  * protocol pipe and ends on its own with 128. The sleep's stdout goes to /dev/null: a helper's stdout is git's protocol
@@ -565,7 +565,7 @@ function sshExitsEarly(memberFile: string): string {
 	].join("\n");
 }
 
-/** k25-c: a stand-in that becomes a sleep holding git's protocol pipe, so git itself waits until the killer. */
+/** held-pipe-timeout-control: a stand-in that becomes a sleep holding git's protocol pipe, so git itself waits until the killer. */
 function sshHoldsGit(): string {
 	return ['[ "$1" = -G ] && exit 0', "exec sleep 30", ""].join("\n");
 }
@@ -661,9 +661,9 @@ async function heldOpen(fixture: FeedCase, standIn: (memberFile: string) => stri
 
 describeOnLinux("a claim Git call that ended on its own reports its own result while its group holds a pipe", () => {
 	test(
-		"k25-a: a read whose ssh stand-in leaves a member holding stderr and exits returns git's own result after the settle window, not a timeout",
+		"held-pipe-own-result: a read whose ssh stand-in leaves a member holding stderr and exits returns git's own result after the settle window, not a timeout",
 		async () => {
-			await withCase("k25-a", async (fixture) => {
+			await withCase("held-pipe-own-result", async (fixture) => {
 				const call = await heldOpen(fixture, sshExitsEarly);
 				const { opened, callMs } = call.result;
 				const reason = opened.kind === "unreachable" ? opened.reason : "";
@@ -674,7 +674,9 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 					waitedForWindow: callMs >= SETTLE_MS,
 					withinOwnEnd: callMs <= 2 * SETTLE_MS,
 				};
-				console.log(`K25 ${JSON.stringify({ row: "k25-a", callMs, elapsedMs: call.elapsedMs, reason, ...view })}`);
+				console.log(
+					`HELD-PIPE ${JSON.stringify({ row: "held-pipe-own-result", callMs, elapsedMs: call.elapsedMs, reason, ...view })}`,
+				);
 				// Positive control (catches: a row that passes because git never ended on its own while a member held its
 				// stderr — a stand-in whose sleep also holds git's protocol pipe, so git itself waits; a sleep that never
 				// started; a call that failed before the transport, such as an endpoint rejected as invalid): a check
@@ -685,7 +687,7 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 				// timeout; a fix that cuts the pipes at git's end without the settle window): the open ends unreachable
 				// with the stand-in's line that git's stderr carried, after the settle window and within two of them. The
 				// second window is the scheduling margin: a simulation of the fix took 255 to 261 ms over 62 calls of
-				// k25-a and k25-b (a one-CPU container and a loaded host), at most 11 ms over the window.
+				// held-pipe-own-result and held-pipe-no-member-left (a one-CPU container and a loaded host), at most 11 ms over the window.
 				expect(view).toEqual({
 					heldAfterGit: true,
 					result: "unreachable",
@@ -699,9 +701,9 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 	);
 
 	test(
-		"k25-b: the same read leaves no member of git's group alive when it returns, nor at +100 ms, +1 s and +3 s",
+		"held-pipe-no-member-left: the same read leaves no member of git's group alive when it returns, nor at +100 ms, +1 s and +3 s",
 		async () => {
-			await withCase("k25-b", async (fixture) => {
+			await withCase("held-pipe-no-member-left", async (fixture) => {
 				const call = await heldOpen(fixture, sshExitsEarly);
 				const view = {
 					heldAfterGit: call.result.heldAfterGit,
@@ -709,8 +711,10 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 					left: call.left,
 					listeners: call.listeners,
 				};
-				console.log(`K25 ${JSON.stringify({ row: "k25-b", callMs: call.result.callMs, ...view })}`);
-				// Positive control (as k25-a): a check while the call ran found the stand-in's sleep alive in git's group
+				console.log(
+					`HELD-PIPE ${JSON.stringify({ row: "held-pipe-no-member-left", callMs: call.result.callMs, ...view })}`,
+				);
+				// Positive control (as held-pipe-own-result): a check while the call ran found the stand-in's sleep alive in git's group
 				// after git had ended, holding the call's stderr.
 				expect({ heldAfterGit: view.heldAfterGit }).toEqual({ heldAfterGit: true });
 				// (catches: a fix that cuts the pipes after the settle window but leaves the group alone — the sleep then
@@ -723,9 +727,9 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 	);
 
 	test(
-		"k25-c: control — a read whose ssh stand-in keeps git itself alive still runs into its killer as a timeout and leaves no process behind",
+		"held-pipe-timeout-control: control — a read whose ssh stand-in keeps git itself alive still runs into its killer as a timeout and leaves no process behind",
 		async () => {
-			await withCase("k25-c", async (fixture) => {
+			await withCase("held-pipe-timeout-control", async (fixture) => {
 				const call = await heldOpen(fixture, sshHoldsGit);
 				const { opened, callMs, atMidway } = call.result;
 				const view = {
@@ -737,7 +741,7 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 					left: call.left,
 					listeners: call.listeners,
 				};
-				console.log(`K25 ${JSON.stringify({ row: "k25-c", callMs, atMidway, ...view })}`);
+				console.log(`HELD-PIPE ${JSON.stringify({ row: "held-pipe-timeout-control", callMs, atMidway, ...view })}`);
 				// Positive control (catches: a row that passes because git ended before its killer — a stand-in that lets
 				// go of git's protocol pipe): at the midway scan git itself was still alive.
 				expect({ gitAtMidway: view.gitAtMidway }).toEqual({ gitAtMidway: true });
@@ -760,9 +764,9 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 	);
 
 	test(
-		"k25-d: control — a read from an endpoint that names no repository returns git's own message without waiting for the settle window",
+		"held-pipe-no-wait-control: control — a read from an endpoint that names no repository returns git's own message without waiting for the settle window",
 		async () => {
-			await withCase("k25-d", async (fixture) => {
+			await withCase("held-pipe-no-wait-control", async (fixture) => {
 				const remote = `file://${join(fixture.root, "absent.git")}`;
 				const call = await fed(async () => {
 					const started = performance.now();
@@ -778,7 +782,7 @@ describeOnLinux("a claim Git call that ended on its own reports its own result w
 					left: call.left,
 					listeners: call.listeners,
 				};
-				console.log(`K25 ${JSON.stringify({ row: "k25-d", callMs, reason, ...view })}`);
+				console.log(`HELD-PIPE ${JSON.stringify({ row: "held-pipe-no-wait-control", callMs, reason, ...view })}`);
 				// No added latency on the normal path (catches: a fix that waits out the settle window after every git
 				// end, even when the pipes reached EOF with git — the routing check and the read are two git calls, so
 				// the open then lasts at least two windows): the open ends unreachable with git's own message in less

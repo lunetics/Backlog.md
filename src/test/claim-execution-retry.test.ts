@@ -7,7 +7,7 @@
  * receipt, over the earlier change landing during the resend, against a held, unwritable or unreadable admission slot,
  * and twice in parallel. Every test starts with a positive control that the typed non-functional scaffold (the executor
  * ignores `schedule`, `resendClaimIntent` answers `unavailable`) cannot satisfy; table rows name the implementation
- * they catch. Open points are marked ASSUMPTION, observations still due [?]. Holds, gates and seams synchronize; no
+ * they catch. Assumptions are marked ASSUMPTION, observations still due [?]. Holds, gates and seams synchronize; no
  * sleep does.
  * claim-execution.test.ts and claim-execution-pause.test.ts stay unchanged. rsm-05 and rsm-07 pin the declined resend
  * exactly (LANDED_AFTER).

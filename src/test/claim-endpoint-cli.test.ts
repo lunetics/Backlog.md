@@ -47,9 +47,9 @@ const OWNER = "agent-owner-endpoint";
 const TICKET = "BACK-1";
 const TRACE_VARIABLE = "GIT_TRACE2_EVENT";
 /** The three parts of a credential endpoint, each distinctive, so a leak names the part it came from. */
-const USER = "SENTINEL-k16-user-91e2";
-const PASSWORD = "SENTINEL-k16-password-5b07";
-const PATH_MARK = "SENTINEL-k16-path-c38d";
+const USER = "SENTINEL-user-91e2";
+const PASSWORD = "SENTINEL-password-5b07";
+const PATH_MARK = "SENTINEL-path-c38d";
 /** Git commands that talk to a remote; a refusal before Git starts none of them. */
 const NETWORK_COMMANDS = ["ls-remote", "fetch", "push", "send-pack", "upload-pack", "remote-http", "remote-https"];
 /**

@@ -363,7 +363,7 @@ function registerGitGroup(child: ReturnType<typeof Bun.spawn>): void {
 }
 
 /** Removes `child`'s group once its call returned; tears the forwarders down once no call is left in flight, so
- * outside a claim Git call the process carries no listener of this module (k21-09). */
+ * outside a claim Git call the process carries no listener of this module (claim-interrupt.test.ts, interrupt-listener-baseline). */
 function unregisterGitGroup(child: ReturnType<typeof Bun.spawn>): void {
 	if (child.pid <= 0) return;
 	inFlightGroups.delete(child.pid);

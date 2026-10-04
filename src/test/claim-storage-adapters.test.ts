@@ -2356,7 +2356,7 @@ for (const format of ADAPTER_FORMATS) {
 						readRefsLeft: await readRefFiles(client),
 						local: await fixture.localState(client),
 					};
-					console.log(`K24 ${JSON.stringify({ row: "k24-a", format, ...view })}`);
+					console.log(`BROKEN-REF ${JSON.stringify({ row: "broken-ref-temp-read", format, ...view })}`);
 					// Positive control (catches: a row that passes because the planted ref is no broken ref to git — a
 					// file git can resolve, a ref written to the wrong place): the file is there and git cannot resolve it.
 					expect({ planted: await Bun.file(path).exists(), resolvable: resolved.rc === 0 }).toEqual({
@@ -2400,7 +2400,7 @@ for (const format of ADAPTER_FORMATS) {
 						brokenRef: await Bun.file(path).text(),
 						readRefsLeft: await readRefFiles(client),
 					};
-					console.log(`K24 ${JSON.stringify({ row: "k24-b", format, ...view })}`);
+					console.log(`BROKEN-REF ${JSON.stringify({ row: "broken-ref-branch", format, ...view })}`);
 					// Positive control (catches: a planted ref git can resolve): the file is there and git cannot resolve it.
 					expect({ planted: await Bun.file(path).exists(), resolvable: resolved.rc === 0 }).toEqual({
 						planted: true,
@@ -2468,7 +2468,7 @@ describe("commit-chain claim storage with broken local refs", () => {
 				const skipped = await store.read(TICKET);
 				const view = { clean: outcome(clean), brokenRefSkipped: outcome(skipped) };
 				console.log(
-					`K24 ${JSON.stringify({ row: "k24-c", firstTree, receipts, cleanRead: clean, skippedRead: skipped, ...view })}`,
+					`BROKEN-REF ${JSON.stringify({ row: "broken-ref-short-fetch", firstTree, receipts, cleanRead: clean, skippedRead: skipped, ...view })}`,
 				);
 				// Positive control (catches: a row that passes because the fetch was never short — objects that were
 				// packed and survived the removal, a server that lost them too): the removed objects were loose in the

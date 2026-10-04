@@ -2100,31 +2100,31 @@ const REMOTE_REJECTED_TEXT = "the claim coordination endpoint refused to write t
 
 const REREAD_ROWS: readonly RereadRow[] = [
 	{
-		id: "k22-a",
+		id: "reread-unreachable",
 		change: "unreachable",
 		outcome: "remote-rejected",
 		title: "a refused swap whose re-read cannot reach the endpoint ends refused remote-rejected, nothing written",
 	},
 	{
-		id: "k22-b",
+		id: "reread-corrupt",
 		change: "corrupt",
 		outcome: "remote-rejected",
 		title: "a refused swap that re-reads a corrupt descriptor ends refused remote-rejected, not epoch-changed",
 	},
 	{
-		id: "k22-c",
+		id: "reread-moved-control",
 		change: "moved",
 		outcome: "epoch-changed",
 		title: "control: a refused swap whose descriptor another writer moved ends rejected epoch-changed",
 	},
 	{
-		id: "k22-d",
+		id: "reread-unchanged-control",
 		change: "unchanged",
 		outcome: "remote-rejected",
 		title: "control: a refused swap with the descriptor unchanged ends refused remote-rejected",
 	},
 	{
-		id: "k22-e",
+		id: "reread-absent",
 		change: "absent",
 		outcome: "remote-rejected",
 		title: "a refused swap that re-reads no descriptor ref ends refused remote-rejected, nothing written",

@@ -1864,14 +1864,14 @@ for (const format of FORMATS) {
 					await controlAcquire(fixture, karl, ledger, "op-crs-01-control");
 					const rows: { label: string; catches: string; step: PauseStep; ticket: string; temporary: boolean }[] = [
 						{
-							label: "k1 after the scan, before prepare",
+							label: "hold-after-scan: after the scan, before prepare",
 							catches: "a scan marker that pauses the next call",
 							step: "after-readdir",
 							ticket: TICKET,
 							temporary: false,
 						},
 						{
-							label: "k1′ in prepare, before the record link",
+							label: "hold-in-prepare: in prepare, before the record link",
 							catches: "a temporary that pauses the next call or must be swept",
 							step: "record-link",
 							ticket: SECOND_TICKET,
@@ -1948,14 +1948,14 @@ for (const format of FORMATS) {
 					const journal = await fixture.journal(karl);
 					const rows: { label: string; catches: string; step: PauseStep; ticket: string; slot: boolean }[] = [
 						{
-							label: "k2 after the record link, before the slot",
+							label: "hold-after-record-link: after the record link, before the slot",
 							catches: "an unadmitted intent invisible to the pause, or lost for good",
 							step: "after-record-link",
 							ticket: TICKET,
 							slot: false,
 						},
 						{
-							label: "k3 after the slot link, before the send",
+							label: "hold-after-slot-link: after the slot link, before the send",
 							catches: "an admission lost, granted twice or freed by time after a crash",
 							step: "after-slot-link",
 							ticket: SECOND_TICKET,

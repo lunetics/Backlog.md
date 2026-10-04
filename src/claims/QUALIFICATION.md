@@ -9,8 +9,8 @@ is qualified by that measurement, with which bounds, and what is not. A sentence
 
 - Backlog.md revision `bce2acc` (`backlog --version` 1.53.0), all three storage formats: `blob`, `tree` and
   `commit-chain`.
-- The one commit after the measured revision changes only documentation (this page and
-  `docs/claims/VERIFICATION.md`). The claim modules of the published head are byte-equal to the product archived
+- Commits after the measured revision change only Markdown documentation (`git diff --name-only bce2acc`
+  lists `*.md` files only). The claim modules of the published head are byte-equal to the product archived
   with every counted run (compared by Git blob hash), so the numbers below describe the shipped code, not an
   earlier state of it.
 - Linux containers only. macOS, Windows and NFS are unqualified.
@@ -30,10 +30,10 @@ is qualified by that measurement, with which bounds, and what is not. A sentence
 
 | stage | what it measured | official run | result |
 | --- | --- | --- | --- |
-| K20a | smoke per server, transport and format; acquire races, transfer; storage format and preflight | `k20a-native2` | 124 of 124 checks passed |
-| K20b | lost replies and network loss; batch reclaim; CLI and MCP parity; secrets in output | `k20b-native2` | 115 of 115 passed |
-| K20c | clock skew and late writes; restore, new epochs, incompatible data, `enabled: false`; sizes up to 100 claims | `k20c-native2` | 87 of 87 passed |
-| K20c-size | 1000 claims and a bandwidth-limited link | `k20c-size-native2` | 13 of 13 passed |
+| A | smoke per server, transport and format; acquire races, transfer; storage format and preflight | `k20a-native2` | 124 of 124 checks passed |
+| B | lost replies and network loss; batch reclaim; CLI and MCP parity; secrets in output | `k20b-native2` | 115 of 115 passed |
+| C | clock skew and late writes; restore, new epochs, incompatible data, `enabled: false`; sizes up to 100 claims | `k20c-native2` | 87 of 87 passed |
+| size run | 1000 claims and a bandwidth-limited link | `k20c-size-native2` | 13 of 13 passed |
 
 Each stage counts its run on this revision. The same matrix ran three times before: twice on the earlier revision
 `fd23b8d` (`k20a-green1`, `k20b-green2`, `k20c-final1`, `k20c-size3`, then `k20a-rep2`, `k20b-rep4`, `k20c-rep1`)
@@ -134,111 +134,113 @@ ids name the checks in the full reports. Tiers:
 - `unqualified`: no row passed, and the behaviour is not local.
 - `non-promise`: a "does not do" sentence; `shown` where a row showed the documented consequence.
 
-Stage combinations, unless a row says otherwise: K20a and K20b on the plain Git server over `https://` and `ssh://`;
-K20c clock and operations rows over `ssh://`, size rows over `https://`; always the three formats.
+Stage combinations, unless a row says otherwise: stages A and B on the plain Git server over `https://` and
+`ssh://`; stage C clock and operations rows over `ssh://`, size rows over `https://`; always the three formats.
+The `S` numbers in the guarantee column, S1 to S15, name the scenarios of [CLAIMS.md](../../CLAIMS.md); `S-01`
+is the smoke row of the matrix.
 
 ### What a claim is, and setup
 
 | guarantee | rows | stage | tier |
 | --- | --- | --- | --- |
-| One valid claim per ticket: of concurrent acquires exactly one lands | P1-01, P1-02, P1-06, P1-01g, S-01 | K20a; Gitea `ssh://` and all smoke legs | qualified |
-| Every change is one conditional write; the slower one ends `rejected`, nothing is overwritten | P1-01, P1-06, P1-08, P7-03, P1-05s | K20a | qualified |
+| One valid claim per ticket: of concurrent acquires exactly one lands | P1-01, P1-02, P1-06, P1-01g, S-01 | A; Gitea `ssh://` and all smoke legs | qualified |
+| Every change is one conditional write; the slower one ends `rejected`, nothing is overwritten | P1-01, P1-06, P1-08, P7-03, P1-05s | A | qualified |
 | Claim commands never change a task's status, assignee or content, and never commit | — | — | loopback |
-| Task edits never move a claim; a release needs no local task file | P5-04 | K20b | qualified |
-| Lease: a renew moves the lease end; reclaimable after the lease end plus the grace | S-01, P3-01-A0, P3-01c, P1-05 | K20a, K20c | qualified |
-| A hard end on a lease: no renewal passes it | P3-04, P3-07 | K20c | qualified |
+| Task edits never move a claim; a release needs no local task file | P5-04 | B | qualified |
+| Lease: a renew moves the lease end; reclaimable after the lease end plus the grace | S-01, P3-01-A0, P3-01c, P1-05 | A, C | qualified |
+| A hard end on a lease: no renewal passes it | P3-04, P3-07 | C | qualified |
 | Hard mode: every acquire needs `--hard-end` | — | — | loopback |
-| Hard mode: reclaimable after the hard end plus the grace | P3-05 | K20c | qualified |
-| `none`: never reclaimable | P2-05 | K20b | qualified |
+| Hard mode: reclaimable after the hard end plus the grace | P3-05 | C | qualified |
+| `none`: never reclaimable | P2-05 | B | qualified |
 | Contexts are private 0700 directories; a copy cannot be told apart | — | — | loopback |
-| `--owner` is a display name only; the context makes a claim yours | P2-03, P4-02, P4-03 | K20b | qualified |
-| Endpoints over `ssh://`, `http://`, `https://` | S-01 and every package row | K20a–K20c | qualified |
-| Endpoints over `git://` | S-01 | K20a | unqualified (control transport only) |
+| `--owner` is a display name only; the context makes a claim yours | P2-03, P4-02, P4-03 | B | qualified |
+| Endpoints over `ssh://`, `http://`, `https://` | S-01 and every package row | A to C | qualified |
+| Endpoints over `git://` | S-01 | A | unqualified (control transport only) |
 | Endpoints over `file://` | — | — | loopback |
 | Credentials in the endpoint URL are refused | — | — | loopback |
-| SSH keys pass through unchanged | S-01, every `ssh://` row | K20a–K20c | qualified (key given through `GIT_SSH_COMMAND`) |
+| SSH keys pass through unchanged | S-01, every `ssh://` row | A to C | qualified (key given through `GIT_SSH_COMMAND`) |
 | A Git credential helper passes through unchanged | — | — | unqualified (HTTP authentication used `GIT_ASKPASS`) |
 | `claim setup` writes twelve keys and never overwrites; `config set` takes no claims keys | — | — | loopback |
-| `claim init` creates the area; run again it reports `exists` | S-01 | K20a | qualified |
+| `claim init` creates the area; run again it reports `exists` | S-01 | A | qualified |
 | `context create` prints only the context ID | — | — | loopback |
-| Commands never ask: broken credentials end `unavailable` | P5-02, P4-02k | K20b | qualified |
+| Commands never ask: broken credentials end `unavailable` | P5-02, P4-02k | B | qualified |
 | A missing mandatory option ends `refused` before anything is sent | — | — | loopback |
 
 ### Workflows and recipes
 
 | guarantee | rows | stage | tier |
 | --- | --- | --- | --- |
-| S1, S2: acquire, list, renew, release | S-01 | K20a | qualified |
-| S3: the second agent gets `not-free`; a reclaim is `not-yet` with its boundary | S-01, P1-01c, P3-01-A0 | K20a, K20c | qualified |
+| S1, S2: acquire, list, renew, release | S-01 | A | qualified |
+| S3: the second agent gets `not-free`; a reclaim is `not-yet` with its boundary | S-01, P1-01c, P3-01-A0 | A, C | qualified |
 | S4, "Ready selection and order": which tickets `claim next` selects and in which order | — | — | loopback (the selection is local; the acquire it runs is the qualified one) |
-| `claim next` tries candidates with the acquire of `claim acquire`, never reclaims, stops at its bound | P6-10 | K20c, K20c-size | qualified (the stop at the bound is noted in every N = 100 and N = 1000 row, not pinned by an assertion) |
+| `claim next` tries candidates with the acquire of `claim acquire`, never reclaims, stops at its bound | P6-10 | C, size run | qualified (the stop at the bound is noted in every N = 100 and N = 1000 row, not pinned by an assertion) |
 | S5, "Dependency policy" | — | — | loopback |
-| S7: a transfer is one write; a lease gets a fresh window | P1-04, P1-07 | K20a | qualified |
-| S7: under a hard end `time-box-required`, a restart without `--hard-end` `requires-time-path`, `preserve` keeps the hard end | P3-08 | K20c | qualified |
+| S7: a transfer is one write; a lease gets a fresh window | P1-04, P1-07 | A | qualified |
+| S7: under a hard end `time-box-required`, a restart without `--hard-end` `requires-time-path`, `preserve` keeps the hard end | P3-08 | C | qualified |
 | S9: `change-bounds` to an earlier hard end; `mode-change` | — | — | unqualified |
-| S13: a later hard end over the time path ends `confirmed` with two sends | P3-03c | K20c | qualified |
+| S13: a later hard end over the time path ends `confirmed` with two sends | P3-03c | C | qualified |
 | S14: a restart with a later hard end over the time path | — | — | unqualified |
-| S6: a lost reply ends `unknown`; a new acquire from that context sends no second change; `resolve`; `retry` | P2-01, P2-04 | K20b | qualified (over real transport the change had landed: the new acquire ended `rejected` `held` and `resolve` answered `applied`) |
+| S6: a lost reply ends `unknown`; a new acquire from that context sends no second change; `resolve`; `retry` | P2-01, P2-04 | B | qualified (over real transport the change had landed: the new acquire ended `rejected` `held` and `resolve` answered `applied`) |
 | S6: while the outcome is open, that new acquire ends `paused` (exit 7) | — | — | loopback (admission is local, decided from the journal and the planning read, before any send) |
-| `claim retry` resends an open operation under its ID | P4-02 | K20b | qualified |
-| `unknown` is not free | P2-02u, P4-01 | K20b | qualified |
+| `claim retry` resends an open operation under its ID | P4-02 | B | qualified |
+| `unknown` is not free | P2-02u, P4-01 | B | qualified |
 | S15: a `witnessed` transition and `claim retry` of the confirmation | — | — | unqualified |
-| S8: one replacement context resumes; the other gets no right | P2-03, P2-04 | K20b | qualified |
-| S10: preview, batch of eligible tickets, `scope-required`, `--all` alone | P4-03, P4-04a, P4-05 | K20b | qualified |
+| S8: one replacement context resumes; the other gets no right | P2-03, P2-04 | B | qualified |
+| S10: preview, batch of eligible tickets, `scope-required`, `--all` alone | P4-03, P4-04a, P4-05 | B | qualified |
 | S11: refusals before any network | — | — | loopback |
-| Refusals after reading the area: `format-mismatch`, `schema-unsupported`, `state-unsupported`, `claims-disabled` | P7-02, P6-02, P6-02s, P6-03 | K20a, K20c | qualified |
-| S12: one JSON document per command; MCP `claim_list`, `claim_acquire`, `claim_resolve` print the CLI document | every row; P1-02, P5-01, P5-03, P6-02 | K20a–K20c | qualified |
+| Refusals after reading the area: `format-mismatch`, `schema-unsupported`, `state-unsupported`, `claims-disabled` | P7-02, P6-02, P6-02s, P6-03 | A, C | qualified |
+| S12: one JSON document per command; MCP `claim_list`, `claim_acquire`, `claim_resolve` print the CLI document | every row; P1-02, P5-01, P5-03, P6-02 | A to C | qualified |
 | The other MCP tools over a real endpoint | — | — | unqualified |
-| Free a claim whose holder is gone: exact root, `stale-root`, nobody assigned | P2-05, P1-05s | K20a, K20b | qualified |
-| Install a new epoch after a restore: every ticket free, old proofs rejected, old operations `unknown-history` | P6-01 | K20c | qualified |
-| `install-epoch`: an old write after the swap is `rejected`; one between swap and rewrite leaves `unknown` until a rerun | P7-04a, P7-04b | K20a | qualified |
+| Free a claim whose holder is gone: exact root, `stale-root`, nobody assigned | P2-05, P1-05s | A, B | qualified |
+| Install a new epoch after a restore: every ticket free, old proofs rejected, old operations `unknown-history` | P6-01 | C | qualified |
+| `install-epoch`: an old write after the swap is `rejected`; one between swap and rewrite leaves `unknown` until a rerun | P7-04a, P7-04b | A | qualified |
 | `install-epoch` causes `epoch-changed` and `writes-observed` | — | — | unqualified |
-| The host keeps `refs/claims/*` and `refs/claim-meta/*`, through its garbage collection too | S-01, P6-04 | K20a, K20c; plain Git server and Gitea | qualified (these two hosts) |
+| The host keeps `refs/claims/*` and `refs/claim-meta/*`, through its garbage collection too | S-01, P6-04 | A, C; plain Git server and Gitea | qualified (these two hosts) |
 | The host isolates the write paths for `install-epoch` | — | — | unqualified |
 
 ### Status, time path, budget and batch
 
 | guarantee | rows | stage | tier |
 | --- | --- | --- | --- |
-| Exit codes: `ok` and `applied` 0, `rejected` 2, `unknown` 3, `unknown-history` 4, `refused` 5, `unavailable` 6, `paused` 7 | every CLI step; 0 and 2: S-01; 3: P2-01; 4: P7-04b; 5: P4-05; 6: P2-02r; 7: P4-02 (a host rejection) | K20a–K20c | qualified |
+| Exit codes: `ok` and `applied` 0, `rejected` 2, `unknown` 3, `unknown-history` 4, `refused` 5, `unavailable` 6, `paused` 7 | every CLI step; 0 and 2: S-01; 3: P2-01; 4: P7-04b; 5: P4-05; 6: P2-02r; 7: P4-02 (a host rejection) | A to C | qualified |
 | `internal` 1 | — | — | unqualified (never produced) |
-| `unavailable`: nothing was sent | P2-02r, P2-02s, P4-02k | K20b | qualified |
-| Time path: a witness only while the clock plus `clock_uncertainty_ms` lies before the hard end | P3-03-L2000, P3-03c | K20c | qualified |
-| Time path: P without a witness is `unknown`; others get `pending-transition` until the hull; then a reclaim | P3-05 | K20c | qualified |
-| A renew sent before the hard end that lands after it: capped at the hard end, no `live` right after it | P3-04 | K20c | qualified |
-| Stored timing is used as-is; a configuration change does not move it | P3-06 | K20c | qualified |
-| The clock rules hold with `clock_uncertainty_ms` 2000 | P3-01-A0 to -A2000, P3-02-L0, -L2000, P3-03-L2000 | K20c | qualified (2000 ms) |
+| `unavailable`: nothing was sent | P2-02r, P2-02s, P4-02k | B | qualified |
+| Time path: a witness only while the clock plus `clock_uncertainty_ms` lies before the hard end | P3-03-L2000, P3-03c | C | qualified |
+| Time path: P without a witness is `unknown`; others get `pending-transition` until the hull; then a reclaim | P3-05 | C | qualified |
+| A renew sent before the hard end that lands after it: capped at the hard end, no `live` right after it | P3-04 | C | qualified |
+| Stored timing is used as-is; a configuration change does not move it | P3-06 | C | qualified |
+| The clock rules hold with `clock_uncertainty_ms` 2000 | P3-01-A0 to -A2000, P3-02-L0, -L2000, P3-03-L2000 | C | qualified (2000 ms) |
 | A send stopped by the budget ends `unknown` with `stoppedBy: "budget"` | — | — | unqualified (no send was stopped) |
-| A read past the budget reports the rest `unknown`, `complete: false` | P6-10, P6-11, P6-12 | K20c, K20c-size | qualified |
-| The batch's candidate list is fixed; a claim that becomes reclaimable later waits | P4-03 | K20b | qualified |
-| Each reclaim of a batch checks the state again; a renewed claim ends `not-yet` | P4-04a, P4-04b | K20b | qualified |
-| An `unknown` entry does not stop the batch | P4-01 | K20b | qualified |
-| Unread tickets go to `unreadable` and are not tried | P6-10 | K20c, K20c-size | qualified |
-| A fault proven for the whole call stops the batch before any reclaim | P4-02k | K20b | qualified |
-| Not promised: detecting a shared remote permission fault | P4-02 | K20b | non-promise, shown |
-| Not promised: a batch budget, size limit or pagination | P6-10 | K20c, K20c-size | non-promise, shown |
+| A read past the budget reports the rest `unknown`, `complete: false` | P6-10, P6-11, P6-12 | C, size run | qualified |
+| The batch's candidate list is fixed; a claim that becomes reclaimable later waits | P4-03 | B | qualified |
+| Each reclaim of a batch checks the state again; a renewed claim ends `not-yet` | P4-04a, P4-04b | B | qualified |
+| An `unknown` entry does not stop the batch | P4-01 | B | qualified |
+| Unread tickets go to `unreadable` and are not tried | P6-10 | C, size run | qualified |
+| A fault proven for the whole call stops the batch before any reclaim | P4-02k | B | qualified |
+| Not promised: detecting a shared remote permission fault | P4-02 | B | non-promise, shown |
+| Not promised: a batch budget, size limit or pagination | P6-10 | C, size run | non-promise, shown |
 
 ### What claims do not do
 
 | sentence | rows | stage | tier |
 | --- | --- | --- | --- |
-| No fencing | P3-02-L8000, P3-04 | K20c | non-promise, shown |
-| No clock check | P3-01-A8000, P3-02-L8000, P3-03-L8000 | K20c | non-promise, shown |
+| No fencing | P3-02-L8000, P3-04 | C | non-promise, shown |
+| No clock check | P3-01-A8000, P3-02-L8000, P3-03-L8000 | C | non-promise, shown |
 | No scheduler; no fairness of `claim next` | — | — | non-promise, not measured |
-| No worker stopping | P1-05, P2-05 | K20a, K20b | non-promise, shown |
-| No offline exclusivity | P2-02r, P2-02s, P5-03 | K20b | non-promise, shown |
-| No protection against direct Git manipulation | P6-01w | K20c | non-promise, shown |
-| No automatic reassignment after an emergency release | P2-05 | K20b | non-promise, shown |
-| No quiescence proof | P7-04a, P7-04b | K20a | non-promise, shown |
-| No task changes | P5-04 | K20b | non-promise, shown |
+| No worker stopping | P1-05, P2-05 | A, B | non-promise, shown |
+| No offline exclusivity | P2-02r, P2-02s, P5-03 | B | non-promise, shown |
+| No protection against direct Git manipulation | P6-01w | C | non-promise, shown |
+| No automatic reassignment after an emergency release | P2-05 | B | non-promise, shown |
+| No quiescence proof | P7-04a, P7-04b | A | non-promise, shown |
+| No task changes | P5-04 | B | non-promise, shown |
 | No watch engine | — | — | non-promise, not measured |
-| `enabled: false` only stops new claims | P6-03 | K20c | non-promise, shown |
-| No transaction over several tickets | P4-01, P4-04b | K20b | non-promise, shown |
-| No time-box extension outside the time path | P3-08, P6-03 | K20c | non-promise, shown |
-| Time path: no work right on a pending claim | P3-05 | K20c | non-promise, shown for other contexts |
-| Time path: no time authority on the server | P3-03-L8000 | K20c | non-promise, shown |
+| `enabled: false` only stops new claims | P6-03 | C | non-promise, shown |
+| No transaction over several tickets | P4-01, P4-04b | B | non-promise, shown |
+| No time-box extension outside the time path | P3-08, P6-03 | C | non-promise, shown |
+| Time path: no work right on a pending claim | P3-05 | C | non-promise, shown for other contexts |
+| Time path: no time authority on the server | P3-03-L8000 | C | non-promise, shown |
 | Time path: no rescue of a lost witness | — | — | non-promise, not measured |
-| Time path: no liveness | P3-05 | K20c | non-promise, shown |
+| Time path: no liveness | P3-05 | C | non-promise, shown |
 
 ## Operational observations
 

@@ -42,11 +42,20 @@ isolation mode and a 10 s timeout per test.
 
 | run on | ubuntu full profile (pass / skip / fail) | other jobs |
 | --- | --- | --- |
-| the measured revision | 3578 / 9 / 1 | macOS green, Windows 3 fails identical to upstream's own baseline |
-| the qualification record | 3576 / 9 / 3 | same |
-| the first fixture commit | 3575 / 9 / 4 | same |
+| the measured revision | 3578 / 9 / 1 | macOS green, Windows red |
+| the qualification record | 3576 / 9 / 3 | macOS green, Windows red |
+| the first fixture commit | 3575 / 9 / 4 | macOS green, Windows red |
 | the evidence commit | 3579 / 9 / 0 | all green, Windows included |
-| the published head | 3579 / 9 / 0 | macOS green, Windows 2 fails of upstream's own timeout class |
+| the second fixture commit | 3579 / 9 / 0 | macOS green, Windows red |
+| the documentation commits | 3579 / 9 / 0 | macOS green, Windows red |
+| the clean-up commit | 3579 / 9 / 0 | all green, Windows included |
+| the published head | 3579 / 9 / 0 | macOS green; Windows as described below |
+
+The Windows job flips between green and red at the 10 s test timeout. On the revisions of this series that ran on
+CI it was green on some runs and red on most; every red run failed one to three tests of upstream's `Auto-commit
+configuration` and `Task ID Generation with Archives` suites (`src/test/auto-commit.test.ts`,
+`src/test/id-generation.test.ts`), files this series does not change. The base revision `69e7b15`, run on the same
+mirror's Windows job, failed the same suites and one more test. The ubuntu job is the acceptance line of this series.
 
 The failures in the first three ubuntu runs were four tests of the claim test fixtures, none of the product: a
 proxy that classified a connection by its first data event although Git writes a packet's length and payload in
@@ -104,4 +113,4 @@ themselves (logs, step documents, raw outputs) are not in this repository.
 
 ## Calendar
 
-2026-09-24 to 2026-10-03, ten consecutive days with dated ledger entries, 286 archived container runs in all.
+2026-09-24 to 2026-10-04, eleven consecutive days with dated ledger entries, 286 archived container runs in all.

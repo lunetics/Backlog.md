@@ -160,6 +160,19 @@ If the output is not good enough: clear the plan/notes/final summary, refine the
 
 ---
 
+## Claims (fork)
+
+This fork adds ticket claims to Backlog.md. A claim records which agent or person holds a ticket right now. It lives in a shared Git coordination area that every participant can push to, never in the task file: claim commands never change a task's status, assignee or content, and never commit. Every change is one atomic, conditional write. An acquire lands only if the ticket is still free, a renew only if the claim is still yours; the loser ends `rejected` and nothing is overwritten. Claims come with lease, hard-end and unlimited lifetimes, hand-over between agents, ready selection with a dependency gate, batch reclaim with preview, emergency release and a controlled new-epoch procedure after a restore. The three storage formats (`blob`, `tree`, `commit-chain`) share one contract; the format is a setup choice.
+
+- [CLAIMS.md](CLAIMS.md): what a claim is, fifteen worked workflows with commands, recovery cases, what claims do not do, how to read the JSON
+- `backlog instructions claims`: the reference for commands, output, status and exit codes, error codes, time path, ready selection, batch reclaim and configuration
+- [QUALIFICATION.md](src/claims/QUALIFICATION.md): what was qualified and with which bounds. A plain Git server (git daemon, HTTP, HTTPS, OpenSSH) and Gitea, three client containers, held pushes, cut and throttled links, shifted clocks, sizes up to 1000 claims. Also what is not qualified.
+- [docs/claims/](docs/claims/): scope and non-scope, workflow proposals for teams and agent fleets, the test effort and evaluation method, known limits
+
+What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. Linux is qualified; macOS, Windows and NFS are not. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
+
+---
+
 ## Working without AI agents
 
 Use Backlog.md as a standalone task manager from the terminal or browser.

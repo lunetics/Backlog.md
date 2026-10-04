@@ -371,7 +371,7 @@ async function expectLostReply(format: Format): Promise<void> {
 		const target = await fixture.make(fixture.a, "claim", "agent-karl", {
 			"claim-op": { expected: fixture.initial, result: "stored" },
 		});
-		await fixture.arm("post", target);
+		await fixture.arm("pre", target);
 		const proxy = await DropProxy.create(server().port);
 		let dropped = false;
 		try {
@@ -381,14 +381,17 @@ async function expectLostReply(format: Format): Promise<void> {
 				fixture.initial,
 				target,
 			);
-			await fixture.entered("post", target);
+			await fixture.entered("pre", target);
+			proxy.holdReplies();
+			await fixture.release("pre", target);
+			await proxy.untilWithheld(`ok ${CLAIM_REF}`);
 			expect(await fixture.remote(fixture.b)).toBe(target);
 			await proxy.drop();
 			dropped = true;
 			expect((await fixture.finishPush(lost)).rc).not.toBe(0);
 		} finally {
 			if (!dropped) await proxy.drop().catch(() => undefined);
-			await fixture.release("post", target);
+			await fixture.release("pre", target);
 		}
 		const fresh = await fixture.readFresh();
 		expect(fresh.oid).toBe(target);

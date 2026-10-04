@@ -1754,12 +1754,14 @@ for (const format of ADAPTER_FORMATS) {
 					const base = expectKind(await lossy.read(TICKET), "absent");
 					const document = documentAfterClaim(format, 1);
 					const oid = await fixture.expectedRoot(document);
-					await fixture.gates.arm("post", oid);
+					await fixture.gates.arm("pre", oid);
 					const pending = lossy.write(base, CLAIM_A);
-					await fixture.gates.entered("post", oid);
+					await fixture.gates.entered("pre", oid);
+					proxy.holdReplies();
+					await fixture.gates.release("pre", oid);
+					await proxy.untilWithheld(`ok ${TICKET_REF}`);
 					expect((await fixture.serverRefs())[TICKET_REF]).toBe(oid);
 					await proxy.drop();
-					await fixture.gates.release("post", oid);
 					expect(await pending).toMatchObject({ kind: "unknown" });
 					expect(await direct.read(TICKET)).toEqual({ kind: "present", ticket: TICKET, root: oid, document });
 

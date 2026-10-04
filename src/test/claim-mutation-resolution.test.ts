@@ -679,11 +679,13 @@ for (const format of FORMATS) {
 
 					const { proxy, remote } = await fixture.viaDropProxy();
 					const lossy = await fixture.store(client, remote);
-					await fixture.gates.arm("post", oid);
+					await fixture.gates.arm("pre", oid);
 					const pending = lossy.write(base, change);
-					await fixture.gates.entered("post", oid);
+					await fixture.gates.entered("pre", oid);
+					proxy.holdReplies();
+					await fixture.gates.release("pre", oid);
+					await proxy.untilWithheld(`ok refs/claims/${TICKET}`);
 					await proxy.drop();
-					await fixture.gates.release("post", oid);
 					// Precondition: the reply was really lost after the server applied the mutation.
 					expect((await pending).kind).toBe("unknown");
 					const afterLoss = await direct.read(TICKET);

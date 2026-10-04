@@ -71,7 +71,7 @@ export type ClaimOpenResult =
 
 const DESCRIPTOR_REF = "refs/claim-meta/format";
 const DEFAULT_TIMEOUT_MS = 3_000;
-/** The bound of the pipe reads after the group kill; a normal EOF never waits for it. */
+/** The bound of the pipe reads after the group kill or after Git ended; a normal EOF never waits for it. */
 const TRANSPORT_SETTLE_MS = 250;
 
 type GitResult = {
@@ -375,7 +375,9 @@ function unregisterGitGroup(child: ReturnType<typeof Bun.spawn>): void {
  * and its killer armed right after the spawn, before any write to stdin. A feed that throws or whose promise rejects
  * first gives the child the settle window to end on its own: a child that ended with an exit code returns git's own
  * result (the feed's message only fills an empty `stderr`); one still alive after the window, or ended by a signal,
- * has its group ended like the timeout does and returns `code -1` with the error.
+ * has its group ended like the timeout does and returns `code -1` with the error. A child that ends on its own gives the
+ * pipes the same window to reach EOF; if a helper of its group still holds one afterwards, the group is ended and the
+ * call returns Git's own result without a timeout.
  */
 async function runGit(
 	repository: string,
@@ -419,6 +421,7 @@ async function runGit(
 	});
 	let settleTimer: ReturnType<typeof setTimeout> | undefined;
 	let feedWindowTimer: ReturnType<typeof setTimeout> | undefined;
+	let exitWindowTimer: ReturnType<typeof setTimeout> | undefined;
 	/** Kills the whole group first; falls back to the direct child as before when the
 	 * group cannot be signalled (no such group, or a platform without process groups, e.g. win32). The group id is not
 	 * reused while a member lives, so the signal reaches only this call's processes; a feed failure whose git ended on
@@ -446,8 +449,20 @@ async function runGit(
 		timedOut = true;
 		endGroup();
 	}, timeoutMs);
+	// Git ended on its own: the killer is no longer needed, and a helper of its group that still holds a pipe after the
+	// settle window is cut off together with the group, so the call returns Git's own result instead of waiting for
+	// the timeout. A timeout or a feed failure that already ended the group owns the settle bound itself.
+	void child.exited.then(() => {
+		if (finished || timedOut || settleTimer !== undefined) return;
+		clearTimeout(killer);
+		exitWindowTimer = setTimeout(() => {
+			if (finished || settleTimer !== undefined) return;
+			endGroup();
+			settle();
+		}, TRANSPORT_SETTLE_MS);
+	});
 	// A failed feed (a git that ended on its own before reading its input is the natural source of an EPIPE) waits for
-	// the child's own ending or the settle window, whichever comes first, and the killer stays armed meanwhile. Only a
+	// the child's own ending or the settle window, whichever comes first, and the killer stays armed while git runs. Only a
 	// child that is still running afterwards, or that ended by a signal, has its group ended; one that ended with an
 	// exit code is left alone and the call returns its own result. A failure that arrives after the call returned,
 	// or after the timeout already ended the group, is only absorbed (never kill a reused group id).
@@ -496,6 +511,7 @@ async function runGit(
 		finished = true;
 		clearTimeout(killer);
 		clearTimeout(feedWindowTimer);
+		clearTimeout(exitWindowTimer);
 		clearTimeout(settleTimer);
 		unregisterGitGroup(child);
 	}

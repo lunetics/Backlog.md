@@ -162,14 +162,17 @@ in the table of src/claims/QUALIFICATION.md. The configured timeout applies to
 each Git command, not to the end-to-end operation. Every claim Git command runs
 in its own process group; a command that exceeds `attempt_timeout_ms` is killed
 together with its transport helpers, and the call returns within the attempt
-bound plus a small margin. The claim commands never prompt: authentication must
-come from an ssh agent, a key without passphrase, or a credential helper that
-does not ask. Interrupting the command from the terminal (SIGINT, SIGTERM or
-SIGHUP) reaches the Git call: while a claim Git command is in flight the signal
-is forwarded to its process group, so git and its transport helpers end with
-the command; the command itself ends with the signal's conventional status. A
-surface with its own shutdown handler (the MCP server, the browser server)
-keeps that handler; the Git call still receives the signal.
+bound plus a small margin. A command that ends on its own while a transport
+helper it started still holds its output gives that output the same small
+margin, then ends the helper and returns Git's own result. The claim commands
+never prompt: authentication must come from an ssh agent, a key without
+passphrase, or a credential helper that does not ask. Interrupting the command
+from the terminal (SIGINT, SIGTERM or SIGHUP) reaches the Git call: while a
+claim Git command is in flight the signal is forwarded to its process group, so
+git and its transport helpers end with the command; the command itself ends with
+the signal's conventional status. A surface with its own shutdown handler (the
+MCP server, the browser server) keeps that handler; the Git call still receives
+the signal.
 
 ### Strict object types
 

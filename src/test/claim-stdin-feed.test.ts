@@ -15,10 +15,15 @@
  * unchanged.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, readlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type ClaimStorageOptions, initializeClaimStorage, openClaimStore } from "../claims/storage/index.ts";
+import {
+	type ClaimOpenResult,
+	type ClaimStorageOptions,
+	initializeClaimStorage,
+	openClaimStore,
+} from "../claims/storage/index.ts";
 import { GitFixtureServer } from "./fixtures/claim-git-fixture.ts";
 
 type Signal = "SIGINT" | "SIGTERM" | "SIGHUP";
@@ -519,74 +524,269 @@ describeOnLinux("a failed feed reports git's own result when git ended on its ow
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// A timed-out call ends the members of git's group even after git itself ended. When git ends on its own while a
-// member of its process group (a transport helper's child) still holds git's stderr, the call's pipes stay open, so it
-// runs into its killer; the killer must still end the group. While a member lives, the group id cannot be reused
-// (POSIX: a process ID that is a live group's ID is not reused until the group's lifetime ends), so the kill reaches
-// only this call's processes. The trigger is an ssh stand-in that leaves such a member and exits at once (k23-f).
+// A git that ended on its own reports its own result, even while a member of its group holds a pipe. When git ends on
+// its own while a member of its process group (a transport helper's child) still holds git's stderr, the call's pipes
+// stay open. From git's own end they get the settle window to reach EOF; then they are cut, the group is ended before
+// the call returns, and the call reports git's own result, not a timeout (k25-a), with no member of the group left
+// behind (k25-b). While a member lives, the group id cannot be reused (POSIX: a process ID that is a live group's ID is
+// not reused until the group's lifetime ends), so the kill reaches only this call's processes. The trigger is an ssh
+// stand-in that leaves such a member and exits at once. A stand-in that keeps git itself alive still runs into the
+// killer (k25-c); a git whose pipes close when it ends returns at once, without the window (k25-d). k25-a and k25-b
+// supersede k23-f, which pinned the timed-out result of the same trigger.
 // ---------------------------------------------------------------------------------------------------------------
 
-/** k23-f: the per-command timeout of the call that runs into its killer (short: the row waits for it). */
+/** k25: the per-command timeout of the calls over a stand-in; k25-c runs into it, k25-a returns well before it. */
 const KILLER_TIMEOUT = 1_500;
-/** k23-f: the scan while the call still waits for its killer, long after git and the stand-in ended. */
+/** k25: the interval of the member checks while a call over a stand-in runs. */
+const SAMPLE_MS = 10;
+/** k25-c: the scan of a call still running this long after it started, while git itself waits for the killer. */
 const MIDWAY = 750;
-/** k23-f: a claim endpoint over ssh, answered by the stand-in below. */
-const SSH_REMOTE = "ssh://k23.invalid/k23-f.git";
+/** k25: a claim endpoint over ssh, answered by the stand-ins below. */
+const SSH_REMOTE = "ssh://k25.invalid/k25.git";
+/** k25-a: the line the stand-in writes to the stderr it shares with git, before it forks. */
+const STAND_IN_TEXT = "k25 stand-in: the transport ended";
+/** k25-d: git's own message for an endpoint that names no repository. */
+const NOT_A_REPOSITORY = "does not appear to be a git repository";
 /**
- * k23-f: a GIT_SSH_COMMAND stand-in (the image has no ssh client), run as `sh <file>`. It answers Git's `-G` variant
- * probe as OpenSSH does, starts a sleep that stays in git's process group and keeps the inherited stderr open, and
- * exits 255 at once; git reads EOF on its protocol pipe and ends on its own with 128. The sleep's stdout goes to
- * /dev/null: a helper's stdout is git's protocol pipe, and holding it would keep git itself alive until the killer.
+ * k25-a, k25-b: a GIT_SSH_COMMAND stand-in (the image has no ssh client), run as `sh <file>`. It answers Git's `-G`
+ * variant probe as OpenSSH does, writes STAND_IN_TEXT to stderr, starts a sleep that stays in git's process group and
+ * keeps the inherited stderr open, writes the sleep's pid to `memberFile`, and exits 255 at once; git reads EOF on its
+ * protocol pipe and ends on its own with 128. The sleep's stdout goes to /dev/null: a helper's stdout is git's protocol
+ * pipe, and holding it would keep git itself alive until the killer.
  */
-const SSH_EXITS_EARLY = ['[ "$1" = -G ] && exit 0', "sleep 30 > /dev/null &", "exit 255", ""].join("\n");
+function sshExitsEarly(memberFile: string): string {
+	return [
+		'[ "$1" = -G ] && exit 0',
+		`echo "${STAND_IN_TEXT}" >&2`,
+		"sleep 30 > /dev/null &",
+		`echo "$!" > '${memberFile}'`,
+		"exit 255",
+		"",
+	].join("\n");
+}
 
-describeOnLinux("a timed-out claim Git call ends git's group even after git ended on its own", () => {
+/** k25-c: a stand-in that becomes a sleep holding git's protocol pipe, so git itself waits until the killer. */
+function sshHoldsGit(): string {
+	return ['[ "$1" = -G ] && exit 0', "exec sleep 30", ""].join("\n");
+}
+
+/** One open over a stand-in: its result and duration, the scans while it ran, and the scan when it returned. */
+type HeldOpen = {
+	opened: ClaimOpenResult;
+	callMs: number;
+	/** A check found the stand-in's member alive while git, the leader of its group, had ended (memberHolds). */
+	heldAfterGit: boolean;
+	/** The marked processes of the first scan from MIDWAY on while the call ran; null when it returned before. */
+	atMidway: string[] | null;
+	atReturn: string[];
+};
+
+/** A process's state letter and process group, from /proc; rejects once the process is gone. */
+async function stateOf(pid: number): Promise<{ state: string; group: number }> {
+	const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+	const [state = "", , group] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+	return { state, group: Number(group) };
+}
+
+/**
+ * Whether the stand-in's member (the pid in `memberFile`) is alive with the call's marker, in a group other than this
+ * test's whose leader — git, which leads its own group — has ended, with stdout on /dev/null and stderr on the call's
+ * stream (Bun's "pipe" stdio is a socket pair on Linux, so a pipe or a socket).
+ */
+async function memberHolds(memberFile: string, mark: string, ownGroup: number): Promise<boolean> {
+	try {
+		const pid = Number((await readFile(memberFile, "utf8")).trim());
+		const environ = (await readFile(`/proc/${pid}/environ`, "utf8")).split("\0");
+		const member = await stateOf(pid);
+		const leader = await stateOf(member.group).catch(() => undefined);
+		const [stdout, stderr] = await Promise.all([readlink(`/proc/${pid}/fd/1`), readlink(`/proc/${pid}/fd/2`)]);
+		return (
+			environ.includes(`${MARK}=${mark}`) &&
+			member.state !== "Z" &&
+			member.group !== ownGroup &&
+			member.group !== pid &&
+			(leader === undefined || leader.state === "Z") &&
+			stdout === "/dev/null" &&
+			/^(pipe|socket):/.test(stderr)
+		);
+	} catch {
+		// no member yet, or it ended while reading
+		return false;
+	}
+}
+
+async function names(mark: string): Promise<string[]> {
+	return (await marked(mark)).map((found) => found.name).sort();
+}
+
+/**
+ * Opens the store over SSH_REMOTE through the stand-in `standIn` writes, under fed()'s marker; checks the stand-in's
+ * member every SAMPLE_MS while the call runs, scans the marked processes once from MIDWAY on, and once more right when
+ * the call returned (+0).
+ */
+async function heldOpen(fixture: FeedCase, standIn: (memberFile: string) => string): Promise<Fed<HeldOpen>> {
+	const stub = join(fixture.root, "ssh-stand-in.sh");
+	const memberFile = join(fixture.root, "member.pid");
+	await Bun.write(stub, standIn(memberFile));
+	const ownGroup = (await stateOf(process.pid)).group;
+	return fed(async () => {
+		const mark = process.env[MARK] ?? "";
+		const before = process.env.GIT_SSH_COMMAND;
+		process.env.GIT_SSH_COMMAND = `sh ${stub}`;
+		const started = performance.now();
+		let returned = false;
+		let heldAfterGit = false;
+		let atMidway: string[] | null = null;
+		const scans = (async () => {
+			while (!returned) {
+				if (!heldAfterGit) heldAfterGit = await memberHolds(memberFile, mark, ownGroup);
+				if (atMidway === null && performance.now() - started >= MIDWAY) atMidway = await names(mark);
+				await Bun.sleep(SAMPLE_MS);
+			}
+		})();
+		try {
+			const opened = await openClaimStore({ ...fixture.options, remote: SSH_REMOTE, timeoutMs: KILLER_TIMEOUT });
+			const callMs = Math.round(performance.now() - started);
+			returned = true;
+			const atReturn = await names(mark);
+			await scans;
+			return { opened, callMs, heldAfterGit, atMidway, atReturn };
+		} finally {
+			returned = true;
+			if (before === undefined) delete process.env.GIT_SSH_COMMAND;
+			else process.env.GIT_SSH_COMMAND = before;
+		}
+	});
+}
+
+describeOnLinux("a claim Git call that ended on its own reports its own result while its group holds a pipe", () => {
 	test(
-		"k23-f: a read whose ssh stand-in leaves a member holding stderr and exits runs into its killer, and no member of the group survives the call",
+		"k25-a: a read whose ssh stand-in leaves a member holding stderr and exits returns git's own result after the settle window, not a timeout",
 		async () => {
-			await withCase("k23-f", async (fixture) => {
-				const stub = join(fixture.root, "ssh-exits-early.sh");
-				await Bun.write(stub, SSH_EXITS_EARLY);
-				const call = await fed(async () => {
-					const mark = process.env[MARK] ?? "";
-					const before = process.env.GIT_SSH_COMMAND;
-					process.env.GIT_SSH_COMMAND = `sh ${stub}`;
-					try {
-						const midway = Bun.sleep(MIDWAY).then(async () => (await marked(mark)).map((found) => found.name).sort());
-						const options = { ...fixture.options, remote: SSH_REMOTE, timeoutMs: KILLER_TIMEOUT };
-						const opened = await openClaimStore(options);
-						return { opened, midway: await midway };
-					} finally {
-						if (before === undefined) delete process.env.GIT_SSH_COMMAND;
-						else process.env.GIT_SSH_COMMAND = before;
-					}
-				});
+			await withCase("k25-a", async (fixture) => {
+				const call = await heldOpen(fixture, sshExitsEarly);
+				const { opened, callMs } = call.result;
+				const reason = opened.kind === "unreachable" ? opened.reason : "";
 				const view = {
-					midway: call.result.midway,
-					ranIntoKiller: call.elapsedMs >= KILLER_TIMEOUT,
-					result: call.result.opened,
-					withinBound: call.elapsedMs <= KILLER_TIMEOUT + 2 * SETTLE_MS,
+					heldAfterGit: call.result.heldAfterGit,
+					result: opened.kind,
+					standInText: reason.includes(STAND_IN_TEXT),
+					waitedForWindow: callMs >= SETTLE_MS,
+					withinOwnEnd: callMs <= 2 * SETTLE_MS,
+				};
+				console.log(`K25 ${JSON.stringify({ row: "k25-a", callMs, elapsedMs: call.elapsedMs, reason, ...view })}`);
+				// Positive control (catches: a row that passes because git never ended on its own while a member held its
+				// stderr — a stand-in whose sleep also holds git's protocol pipe, so git itself waits; a sleep that never
+				// started; a call that failed before the transport, such as an endpoint rejected as invalid): a check
+				// while the call ran found the stand-in's sleep alive in git's group after git had ended, with stdout on
+				// /dev/null and stderr on the call's stream.
+				expect({ heldAfterGit: view.heldAfterGit }).toEqual({ heldAfterGit: true });
+				// (catches: today's wait for the killer — the reason is "git command timed out" and the call lasts its
+				// timeout; a fix that cuts the pipes at git's end without the settle window): the open ends unreachable
+				// with the stand-in's line that git's stderr carried, after the settle window and within two of them. The
+				// second window is the scheduling margin: a simulation of the fix took 255 to 261 ms over 62 calls of
+				// k25-a and k25-b (a one-CPU container and a loaded host), at most 11 ms over the window.
+				expect(view).toEqual({
+					heldAfterGit: true,
+					result: "unreachable",
+					standInText: true,
+					waitedForWindow: true,
+					withinOwnEnd: true,
+				});
+			});
+		},
+		TEST_TIMEOUT,
+	);
+
+	test(
+		"k25-b: the same read leaves no member of git's group alive when it returns, nor at +100 ms, +1 s and +3 s",
+		async () => {
+			await withCase("k25-b", async (fixture) => {
+				const call = await heldOpen(fixture, sshExitsEarly);
+				const view = {
+					heldAfterGit: call.result.heldAfterGit,
+					atReturn: call.result.atReturn,
 					left: call.left,
 					listeners: call.listeners,
 				};
-				console.log(`K23 ${JSON.stringify({ row: "k23-f", elapsedMs: call.elapsedMs, ...view })}`);
-				// Positive control (catches: a row that passes because git never ended on its own while a member held its
-				// stderr — a stand-in whose sleep also holds git's protocol pipe, so git itself waits for the killer; a
-				// sleep that never started; a call that failed before the transport, such as an endpoint rejected as
-				// invalid): at the midway scan only the sleep of the call was alive, and the call returned at its killer.
-				expect({ midway: view.midway, ranIntoKiller: view.ranIntoKiller }).toEqual({
-					midway: ["sleep"],
-					ranIntoKiller: true,
-				});
-				// (catches: a group kill that is skipped once git, the group's leader, has ended — the member then outlives
-				// the call and the pipes are cut only at the settle bound): the open ends unreachable as a timed-out call,
-				// within its bound, no process of the call is alive at +100 ms, +1 s and +3 s, and the listener baseline
-				// is back.
+				console.log(`K25 ${JSON.stringify({ row: "k25-b", callMs: call.result.callMs, ...view })}`);
+				// Positive control (as k25-a): a check while the call ran found the stand-in's sleep alive in git's group
+				// after git had ended, holding the call's stderr.
+				expect({ heldAfterGit: view.heldAfterGit }).toEqual({ heldAfterGit: true });
+				// (catches: a fix that cuts the pipes after the settle window but leaves the group alone — the sleep then
+				// outlives a call that no longer waits for its killer): no process of the call is alive when it returns,
+				// nor at +100 ms, +1 s and +3 s, and the listener baseline is back.
+				expect(view).toEqual({ heldAfterGit: true, atReturn: [], left: NONE_LEFT, listeners: BASELINE });
+			});
+		},
+		TEST_TIMEOUT,
+	);
+
+	test(
+		"k25-c: control — a read whose ssh stand-in keeps git itself alive still runs into its killer as a timeout and leaves no process behind",
+		async () => {
+			await withCase("k25-c", async (fixture) => {
+				const call = await heldOpen(fixture, sshHoldsGit);
+				const { opened, callMs, atMidway } = call.result;
+				const view = {
+					gitAtMidway: atMidway?.includes("git ls-remote") ?? false,
+					result: opened,
+					ranIntoKiller: callMs >= KILLER_TIMEOUT,
+					withinBound: callMs <= KILLER_TIMEOUT + 2 * SETTLE_MS,
+					atReturn: call.result.atReturn,
+					left: call.left,
+					listeners: call.listeners,
+				};
+				console.log(`K25 ${JSON.stringify({ row: "k25-c", callMs, atMidway, ...view })}`);
+				// Positive control (catches: a row that passes because git ended before its killer — a stand-in that lets
+				// go of git's protocol pipe): at the midway scan git itself was still alive.
+				expect({ gitAtMidway: view.gitAtMidway }).toEqual({ gitAtMidway: true });
+				// A real timeout is unchanged (catches: a fix that disarms the killer before git ended, or that reports
+				// git's partial result for a git it had to end): the open ends unreachable as a timed-out call, at its
+				// killer and within its bound, no process of the call is alive when it returns, nor at +100 ms, +1 s and
+				// +3 s, and the listener baseline is back.
 				expect(view).toEqual({
-					midway: ["sleep"],
-					ranIntoKiller: true,
+					gitAtMidway: true,
 					result: { kind: "unreachable", reason: "git command timed out" },
+					ranIntoKiller: true,
 					withinBound: true,
+					atReturn: [],
+					left: NONE_LEFT,
+					listeners: BASELINE,
+				});
+			});
+		},
+		TEST_TIMEOUT,
+	);
+
+	test(
+		"k25-d: control — a read from an endpoint that names no repository returns git's own message without waiting for the settle window",
+		async () => {
+			await withCase("k25-d", async (fixture) => {
+				const remote = `file://${join(fixture.root, "absent.git")}`;
+				const call = await fed(async () => {
+					const started = performance.now();
+					const opened = await openClaimStore({ ...fixture.options, remote });
+					return { opened, callMs: Math.round(performance.now() - started) };
+				});
+				const { opened, callMs } = call.result;
+				const reason = opened.kind === "unreachable" ? opened.reason : "";
+				const view = {
+					result: opened.kind,
+					gitMessage: reason.includes(NOT_A_REPOSITORY),
+					withoutWindow: callMs < 2 * SETTLE_MS,
+					left: call.left,
+					listeners: call.listeners,
+				};
+				console.log(`K25 ${JSON.stringify({ row: "k25-d", callMs, reason, ...view })}`);
+				// No added latency on the normal path (catches: a fix that waits out the settle window after every git
+				// end, even when the pipes reached EOF with git — the routing check and the read are two git calls, so
+				// the open then lasts at least two windows): the open ends unreachable with git's own message in less
+				// than two settle windows, no process of the call is left, and the listener baseline is back.
+				expect(view).toEqual({
+					result: "unreachable",
+					gitMessage: true,
+					withoutWindow: true,
 					left: NONE_LEFT,
 					listeners: BASELINE,
 				});

@@ -34,12 +34,6 @@ and the poller rate, and both fell with more refs.
 Our own concurrent claim reads do not break each other: the claim fetch tolerates a sibling read's temporary ref
 (`GIT_REF_PARANOIA=0` on that fetch only), measured at 0 of 1000 after the change against 2 to 9 of 1000 before.
 
-## A timed-out Git call hides Git's own message
-
-When a Git call exceeds its attempt timeout while a helper process it started still holds the error stream, the
-reported reason says `timed out` and omits what Git itself wrote. The status and exit code are right; only the
-text is poorer. Open; the fix is a follow-up.
-
 ## Linux only
 
 Linux containers were qualified. macOS, Windows and NFS were not measured at all, and the tests that upstream runs

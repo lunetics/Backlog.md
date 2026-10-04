@@ -49,6 +49,19 @@ verdict from that archive:
 A stage counted only after a guard run, with the harness deliberately broken in one place, turned exactly the
 predicted checks red and nothing else. The reports list those guard runs beside the official ones.
 
+## Identifiers you will meet in the reports and archives
+
+| identifier | meaning |
+| --- | --- |
+| `K20` | The project-internal name of this qualification matrix. It has no further meaning. The text calls it the qualification matrix; the archives, run names and log markers keep the letters. |
+| `K20a`, `K20b`, `K20c`, `K20c-size` | The four stages as the archives and run names spell them: stage A (smoke per combination, acquire races, transfer, formats, preflight), stage B (lost replies and network loss, batch reclaim, CLI and MCP parity, secrets in output), stage C (clock skew and late writes, restore and new epochs, incompatible data, `enabled: false`, sizes up to 100 claims) and the size run (1000 claims, a bandwidth-limited link). |
+| `k20a-native2`, `k20b-green2`, `k20c-final1`, `k20c-size3`, … | Run names: the stage, then a label of the run. The reports say which runs are official and which were guard runs, repeats or stopped runs. |
+| `K20`, `K20-ROW`, `K20-RUN`, `K20-HARNESS`, `K20-LEAK` | The first word of the JSON lines in a run's `tests.log`: one `K20` line per step, one `K20-ROW` per check, one `K20-RUN` per run, `K20-HARNESS` for a harness fault, `K20-LEAK` for the leak scan. "`K20` steps" in an evidence pointer means the step lines of that check. |
+| `k20.py` | The evaluator script. Each report's last section names it by sha256. |
+| `S-01`, `P1-01` … `P7-04b` | Row identifiers: `S-01` is the matrix smoke row, `P1` to `P7` are the seven test packages, each row frozen with the scenario files. `S1` to `S15`, without a hyphen, are the scenarios of [CLAIMS.md](../../../CLAIMS.md). |
+| `H-9`, `H-10`, `H-12` | Harness defects met during the qualification, numbered in the order found; section 5 of each report describes them. |
+| `Q-12`, `O-02`, `F9`, `CLAIM-…` | References into the contract the rows were frozen against. The contract is not part of this repository. |
+
 ## What is here and what is not
 
 The reports are here. The archives (logs, step documents, raw outputs), the harness (compose files, server image,

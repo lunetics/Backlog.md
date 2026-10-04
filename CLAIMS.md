@@ -28,6 +28,23 @@ command, code and field is the claims guide, `backlog instructions claims`; this
 - **`--owner` is a display name only.** It shows who holds a claim, and `--claim-owner` filters by it, but it is never
   an identity. What makes a claim yours is the context.
 
+The lifetime of one claim, across the three modes:
+
+```mermaid
+stateDiagram-v2
+    [*] --> free
+    free --> active: acquire, applied
+    active --> active: renew moves the lease end (lease)
+    active --> active: transfer or resume, another context holds
+    active --> free: release
+    active --> reclaimable: lease end or hard end, plus the grace (lease, hard)
+    reclaimable --> active: reclaim by another context, applied
+    note right of reclaimable
+        Mode none never reaches this state:
+        only a release, a transfer or a resume moves such a claim.
+    end note
+```
+
 ## Setup
 
 A project needs three commands once. `backlog claim setup` writes the `claims:` block into the project configuration.
@@ -188,6 +205,23 @@ Now `agent-b` acquires the ticket. The result is `applied`, and its ownership is
 backlog claim acquire BACK-1 --owner agent-b --context <context-b> --json
 ```
 
+```mermaid
+sequenceDiagram
+    participant A as agent-a
+    participant C as coordination area
+    participant B as agent-b
+    A->>C: acquire BACK-1
+    C-->>A: applied, ownership held
+    B->>C: acquire BACK-1
+    C-->>B: rejected, cause not-free
+    B->>C: reclaim BACK-1
+    C-->>B: rejected, cause not-yet, boundary = lease end plus grace
+    A->>C: release BACK-1
+    C-->>A: applied, BACK-1 free
+    B->>C: acquire BACK-1
+    C-->>B: applied, ownership held
+```
+
 ### S4 Claim the next ready ticket
 
 This scenario creates its own tickets. The first is already finished, the second is ready, and the third waits for the
@@ -327,6 +361,20 @@ the sender's view is `foreign`.
 <!-- example S7.7: status=applied exit=0 -->
 ```bash
 backlog claim transfer BACK-2 --to-context <context-b> --owner agent-b --time-box preserve --context <context-a> --json
+```
+
+```mermaid
+flowchart TD
+    transfer["claim transfer --to-context context-b --owner agent-b"]
+    required["rejected, time-box-required: nothing recorded or sent"]
+    transfer --> timing{"claim's timing"}
+    timing -->|"lease, with --ttl-ms"| lease["applied: sender sees foreign, receiver sees held"]
+    timing -->|hard end| tb{"--time-box"}
+    tb -->|"absent, no transfer_time_box key"| required
+    tb -->|preserve| preserve["applied: hard end kept"]
+    tb -->|"restart without --hard-end"| path["rejected, requires-time-path"]
+    tb -->|"restart --hard-end later-hard-end"| restart["time path: P, witness, A (S14)"]
+    restart --> confirmed["applied: phase confirmed, new hard end"]
 ```
 
 ### S9 Shorten a claim
@@ -696,6 +744,19 @@ The result is `applied`, with `command` `retry`, `action` `acquire` and the owne
 backlog claim retry <operation-id> --context <context-a> --json
 ```
 
+```mermaid
+flowchart TD
+    acquire["claim acquire BACK-1"]
+    unknown["unknown, exit 3, with its operationId"]
+    paused["paused, exit 7: pause.operationIds names the open one"]
+    acquire -->|no reply within attempt_timeout_ms, no attempt left| unknown
+    unknown --> resolve["claim resolve operation-id: sends nothing"]
+    resolve -->|operation still open| open["unknown, query.resolution open"]
+    unknown -.->|a new acquire of the same ticket, same context| paused
+    open --> retry["claim retry operation-id: resends the identical change"]
+    retry --> applied["applied: command retry, action acquire, ownership held"]
+```
+
 ### S15 A witnessed transition
 
 A call over the time path can end `unknown` after its witness was recorded. In this example `agent-a` holds `BACK-1`
@@ -775,6 +836,25 @@ backlog claim resume BACK-1 --context <context-a-recovered> --json
 
 Resume imports no journal. Operations the old context left open can only be settled with `resolve` or `retry` from
 the old context itself.
+
+```mermaid
+sequenceDiagram
+    participant A as agent-a
+    participant R as replacement context
+    participant C as coordination area
+    A->>C: acquire BACK-1
+    C-->>A: applied
+    Note over A: stops responding
+    Note over R: claim context create --recover-from context-a
+    Note over R: reads the old proof, prints only the new context ID
+    R->>C: claim resume BACK-1
+    C-->>R: applied, ownership held, stored timing kept, no new lease window
+    R->>C: claim resume BACK-1 again
+    C-->>R: rejected, cause held
+    R->>C: claim renew, soon after the resume
+    Note over R: resume imports no journal: the old context's open operations
+    Note over R: need resolve or retry from the old context itself
+```
 
 ### S10 Clean up after a departed agent
 

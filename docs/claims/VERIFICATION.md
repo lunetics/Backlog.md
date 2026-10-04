@@ -83,10 +83,10 @@ part of the claims work.
   containers, each running the shipped `backlog` CLI in its own project directory, and for the parity rows
   `backlog mcp start`; a driver that runs the frozen scenario files. libfaketime 0.9.10 shifts single clients.
   Git 2.47.3 on the server and the clients, Bun 1.3.14.
-- Six server and transport combinations times three storage formats, 18 combinations. Four stages: K20a with
-  124 checks (smoke per combination, acquire races, transfer, formats, preflight), K20b with 115 (lost replies and
-  network loss, batch reclaim, CLI and MCP parity, secrets in output), K20c with 87 (clock skew and late writes,
-  restore and new epochs, incompatible data, `enabled: false`, sizes up to 100 claims), K20c-size with 13 (1000
+- Six server and transport combinations times three storage formats, 18 combinations. Four stages: stage A with
+  124 checks (smoke per combination, acquire races, transfer, formats, preflight), stage B with 115 (lost replies and
+  network loss, batch reclaim, CLI and MCP parity, secrets in output), stage C with 87 (clock skew and late writes,
+  restore and new epochs, incompatible data, `enabled: false`, sizes up to 100 claims), the size run with 13 (1000
   claims, a bandwidth-limited link); 339 checks per full matrix.
 - A stage counted only after a guard run, with the harness deliberately broken in one place, turned exactly the
   predicted checks red and nothing else: endpoints split across two repositories (93 checks red), the push gate

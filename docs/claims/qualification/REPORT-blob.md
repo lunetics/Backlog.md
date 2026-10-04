@@ -1,11 +1,14 @@
 # Qualification report — storage format `blob`
 
-Reference report of the K20 qualification of Backlog.md native claims over real transport, for the storage format
+Reference report of the qualification matrix (`K20` in the archives) of Backlog.md native claims over real
+transport, for the storage format
 `blob`. The sibling reports `REPORT-blob.md`, `REPORT-tree.md` and `REPORT-commit-chain.md` share this structure;
 every row that ran for this format appears here with this format's combinations. The harness is described in
 `README.md` in the same directory as the reports. The contract the rows were frozen against and the run ledger are
 not part of this repository. The user-facing summary is
-`src/claims/QUALIFICATION.md` in Backlog.md.
+`src/claims/QUALIFICATION.md` in Backlog.md. The identifiers in this report (`K20`, the stage names, `K20-ROW`
+and its siblings, run names, row IDs) are explained in
+[README.md](README.md#identifiers-you-will-meet-in-the-reports-and-archives).
 
 ## 1. Header
 
@@ -23,21 +26,21 @@ not part of this repository. The user-facing summary is
 
 | stage | run | role | evaluator (k20.py sha256) | verdict | cases (`blob` / all) |
 | --- | --- | --- | --- | --- | --- |
-| K20a | `k20a-green1` | final GREEN | `1dbc05fa` | GREEN, 124/124 pass, 0 findings, 0 problems | 42/42 |
-| K20a | `k20a-gsplit1` | guard `split-endpoint` | `1dbc05fa` | GUARD as expected | — |
-| K20a | `k20a-ggate3` | guard `gate-bypass` | `1dbc05fa` | GUARD as expected | — |
-| K20b | `k20b-green2` | final GREEN | `6db8e5e6` | GREEN, 115/115 pass, 0 findings, 0 problems | 39/39 |
-| K20b | `k20b-injoff2` | guard `injection-off` | `6db8e5e6` | GUARD as expected | — |
-| K20c | `k20c-final1` | final GREEN (alone on the test machine) | `2a243518` | GREEN, 87/87 pass, 0 findings, 0 problems, clock check 0/759 steps off | 31/31 |
-| K20c | `k20c-gft1` | guard `faketime-off` (alone) | `8b6c534e` | GUARD as expected, clock check off on exactly the 27 skewed steps | — |
-| K20c | `k20c-dry3` | acceptance run, not the final | `8b6c534e` | GREEN, 87/87 | — |
-| K20c-size | `k20c-size3` | single size measurement (n = 1, alone) | `2a243518` | GREEN, 13/13 pass, 0 findings, 0 problems, spread list empty | 5/5 |
-| K20c-size | `k20c-size1` | stopped, not evidence (harness defect H-9) | — | — | — |
-| K20c-size | `k20c-size2` | not evidence (harness defect H-10); cross-check only | `2a243518` | NOT OK, 11 of 13 cases measured, 0 findings, 4 problems (all harness) | — |
-| K20a | `k20a-rep2` | repeat, run 2 | `2a243518` | GREEN, 124/124 pass, 0 findings, 0 problems | 42/42 |
-| K20b | `k20b-rep3` | not evidence (harness defect H-12) | — | — | — |
-| K20b | `k20b-rep4` | repeat, run 2 | `2a243518` | GREEN, 115/115 pass, 0 findings, 0 problems, P2-01q `queried` 6/6, P2-03 `stale` 6/6, 0 penalty lines | 39/39 |
-| K20c | `k20c-rep1` | repeat, run 2 (alone on the test machine) | `2a243518` | GREEN, 87/87 pass, 0 findings, 0 problems, clock check 0/759 steps off | 31/31 |
+| A | `k20a-green1` | final GREEN | `1dbc05fa` | GREEN, 124/124 pass, 0 findings, 0 problems | 42/42 |
+| A | `k20a-gsplit1` | guard `split-endpoint` | `1dbc05fa` | GUARD as expected | — |
+| A | `k20a-ggate3` | guard `gate-bypass` | `1dbc05fa` | GUARD as expected | — |
+| B | `k20b-green2` | final GREEN | `6db8e5e6` | GREEN, 115/115 pass, 0 findings, 0 problems | 39/39 |
+| B | `k20b-injoff2` | guard `injection-off` | `6db8e5e6` | GUARD as expected | — |
+| C | `k20c-final1` | final GREEN (alone on the test machine) | `2a243518` | GREEN, 87/87 pass, 0 findings, 0 problems, clock check 0/759 steps off | 31/31 |
+| C | `k20c-gft1` | guard `faketime-off` (alone) | `8b6c534e` | GUARD as expected, clock check off on exactly the 27 skewed steps | — |
+| C | `k20c-dry3` | acceptance run, not the final | `8b6c534e` | GREEN, 87/87 | — |
+| size run | `k20c-size3` | single size measurement (n = 1, alone) | `2a243518` | GREEN, 13/13 pass, 0 findings, 0 problems, spread list empty | 5/5 |
+| size run | `k20c-size1` | stopped, not evidence (harness defect H-9) | — | — | — |
+| size run | `k20c-size2` | not evidence (harness defect H-10); cross-check only | `2a243518` | NOT OK, 11 of 13 cases measured, 0 findings, 4 problems (all harness) | — |
+| A | `k20a-rep2` | repeat, run 2 | `2a243518` | GREEN, 124/124 pass, 0 findings, 0 problems | 42/42 |
+| B | `k20b-rep3` | not evidence (harness defect H-12) | — | — | — |
+| B | `k20b-rep4` | repeat, run 2 | `2a243518` | GREEN, 115/115 pass, 0 findings, 0 problems, P2-01q `queried` 6/6, P2-03 `stale` 6/6, 0 penalty lines | 39/39 |
+| C | `k20c-rep1` | repeat, run 2 (alone on the test machine) | `2a243518` | GREEN, 87/87 pass, 0 findings, 0 problems, clock check 0/759 steps off | 31/31 |
 
 The "cases" column counts the K20-ROW lines of the final GREEN run whose combination has this format, and how many
 passed. P5-05 runs on `raw/https/blob` only and is counted in the blob report; it scans the outputs of every format.
@@ -105,7 +108,7 @@ Each entry names the row, its title and requirement ids as frozen in the scenari
 the guard prediction met for this format, and where the evidence is. "Observed" restates the row's assertions; a
 row passes only when all of them held.
 
-### Matrix smoke (S-01, stage K20a)
+### Matrix smoke (S-01, stage A)
 
 **S-01** — two clients share one coordination area over this server, transport and format. Refs: CLAIM-ACCEPTANCE-001, M-05.
 
@@ -115,7 +118,7 @@ row passes only when all of them held.
 - Guards: `k20a-gsplit1` (split-endpoint): predicted red, measured red 6/6, 6 at `"exists"`; `k20a-ggate3` (gate-bypass): not predicted, measured green 6/6.
 - Evidence: `k20a-green1`, `S-01 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/S-01/`.
 
-### P1 Vergabe und Transfer (stage K20a)
+### P1 Vergabe und Transfer (stage A)
 
 **P1-01** — two clients race acquire on one ticket: exactly one applied. Refs: M-01, R-01, Q-01.
 
@@ -210,7 +213,7 @@ row passes only when all of them held.
 - Guards: `k20a-gsplit1` (split-endpoint): predicted red, measured red 2/2, 2 at `"cause": "stale"` + `"outcome": "applied"`; `k20a-ggate3` (gate-bypass): predicted red, measured red 2/2, 2 at `waitEntered`.
 - Evidence: `k20a-green1`, `P1-08 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P1-08/`.
 
-### P2 Ausfall und Wiederaufnahme (stage K20b)
+### P2 Ausfall und Wiederaufnahme (stage B)
 
 **P2-01** — lost reply after the effect with the query cut: unknown, pause, resolve stored, retry without a send. Refs: M-21, Q-03, R-10, R-11.
 
@@ -280,7 +283,7 @@ row passes only when all of them held.
 - Guards: `k20b-injoff2` (injection-off): not predicted, measured green 2/2.
 - Evidence: `k20b-green2`, `P2-05 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P2-05/`.
 
-### P3 Zeitregeln (stage K20c)
+### P3 Zeitregeln (stage C)
 
 **P3-01-A0** — reclaim 5 s before the true boundary, reclaimer clock 0 ms ahead: not yet. Refs: Q-12, O-02, CLAIM-TIME-001, M-15.
 
@@ -410,7 +413,7 @@ row passes only when all of them held.
 - Guards: `k20c-gft1` (faketime-off): not predicted, measured green 1/1.
 - Evidence: `k20c-final1`, `P3-08 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-08/`.
 
-### P4 Rückholung (stage K20b)
+### P4 Rückholung (stage B)
 
 **P4-01** — batch: one reclaim ends unknown, the others go on; unknown stays with its ticket. Refs: M-24, Q-19, RECOVERY-UNKNOWN-CONTINUE.
 
@@ -470,7 +473,7 @@ row passes only when all of them held.
 - Guards: `k20b-injoff2` (injection-off): not predicted, measured green 2/2.
 - Evidence: `k20b-green2`, `P4-05 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P4-05/`.
 
-### P5 Integration (stage K20b; P5-05 in every stage)
+### P5 Integration (stage B; P5-05 in every stage)
 
 **P5-01** — CLI and MCP print the same document for the same state over the real endpoint. Refs: M-02, R-26, Q-02.
 
@@ -504,7 +507,7 @@ row passes only when all of them held.
 - Guards: `k20b-injoff2` (injection-off): not predicted, measured green 2/2.
 - Evidence: `k20b-green2`, `P5-04 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P5-04/`.
 
-### P6 Betrieb (stage K20c; size stage K20c-size)
+### P6 Betrieb (stage C; the size run)
 
 **P6-01** — restore of an older backup + install-epoch: every ticket free in the new epoch, old proofs and histories void. Refs: M-33, Q-16, Q-26, CLAIM-RESTORE-001, O-04, O-05.
 
@@ -657,7 +660,7 @@ row passes only when all of them held.
   ran under {rateKBps: 128}, set before the first call, unchanged inside the window (our `size-evidence.py`).
 - Evidence: `k20c-size3`, `P6-11-N1000-BW [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P6-11-N1000-BW/`. Cross-check only: `k20c-size2` (NOT OK, H-10) measured this case too.
 
-### P7 Speicherformat und Preflight (stage K20a)
+### P7 Speicherformat und Preflight (stage A)
 
 **P7-01** — concurrent init with two formats: exactly one binding format, the loser reports the conflict. Refs: M-39, R-32, Q-14.
 
@@ -713,7 +716,7 @@ row passes only when all of them held.
 
 **P5-05** — no key, token, CA or context material in any captured output of the run; the canary is found. Refs: Q-23, R-26, R-34. Runs once per stage on `raw/https/blob`, scanning the whole run, so it covers this format's outputs too.
 
-- `k20a-green1`: no K20-LEAK line (not required by the K20a evaluator); P5-05 passed, scanned {'files': 1013, 'bytes': 1630687}.
+- `k20a-green1`: no K20-LEAK line (not required by the stage A evaluator); P5-05 passed, scanned {'files': 1013, 'bytes': 1630687}.
 - `k20b-green2`: 8 needles (ssh-private-key, ssh-private-key-fragment, ssh-key-path, ca-cert-path, ca-key-path, gitea-token, gitea-token-fragment, gitea-admin-password), 1109 files, 1912345 bytes, canary true, hits [].
 - `k20c-final1`: 8 needles (ssh-private-key, ssh-private-key-fragment, ssh-key-path, ca-cert-path, ca-key-path, gitea-token, gitea-token-fragment, gitea-admin-password), 1523 files, 4146439 bytes, canary true, hits [].
 - `k20c-size3`: 8 needles (ssh-private-key, ssh-private-key-fragment, ssh-key-path, ca-cert-path, ca-key-path, gitea-token, gitea-token-fragment, gitea-admin-password), 6113 files, 11432366 bytes, canary true, hits [].
@@ -889,8 +892,8 @@ Whether receive-pack completes a push after the client is gone depends on the tr
 
 ### 4.5 Timings not used as bounds
 
-K20a ran in three lanes in parallel and the K20b finals shared the test machine with each other and, for about 20 minutes, with
-a K20c dry run. No K20a or K20b timing is quoted in this report as a single-run value; only the K20c gate matrix (`k20c-final1`) and
+Stage A ran in three lanes in parallel and the stage B finals shared the test machine with each other and, for about 20 minutes, with
+a stage C dry run. No stage A or stage B timing is quoted in this report as a single-run value; only the stage C gate matrix (`k20c-final1`) and
 the size stage (`k20c-size3`) ran alone.
 
 ## 5. Findings and dispositions during the qualification
@@ -978,7 +981,7 @@ part of this repository):
 - A Git credential helper: HTTP authentication ran through `GIT_ASKPASS`.
 - The honesty pins of the size rows are guard-proven in no stage: no harness defect makes the product lie (our
   limit statement, run ledger).
-- K20a and K20b timing values (shared test machine, section 4.5).
+- stage A and stage B timing values (shared test machine, section 4.5).
 - The size stage is n = 1 by decision; its spread list is empty, so no second size run was made (`k20c-size3`).
   The two spread pairs of the gate-matrix repeat `k20c-rep1` (N = 1, 0 ms: `list` 1058–1406 ms, `list --context`
   966–1478 ms) decide nothing. Single-claim calls at N = 1 and 0 ms latency vary by up to ≈ 0.5 s between runs; the format that is slowest changes from run to run while the Git process count per format stays the same, so spreads over 30 % there are wall-clock jitter, not a cost of the storage format (dry3, final1, k20c-rep1).
@@ -997,5 +1000,5 @@ identify the scenario files and the evaluators used.
 
 Frozen scenario hashes (sha256, `K20-RUN.scenarios`, checked by every
 evaluator): k20a-smoke `0e10dc95…`, p1 `6f6b302b…`, p7 `0d7be160…`, z-leak `4dfc5ed0…`, p2 `f2a06c30…`, p4
-`01a4aef6…`, p5 `674c50d9…`, p3 `ca8c43ef…`, p6 `172d9588…`, p6-size `a0d3fbe1…`; evaluators `1dbc05fa…` (K20a),
-`6db8e5e6…` (K20b), `8b6c534e…` (K20c acceptance), `2a243518…` (K20c finals and repeats); full hashes available on request.
+`01a4aef6…`, p5 `674c50d9…`, p3 `ca8c43ef…`, p6 `172d9588…`, p6-size `a0d3fbe1…`; evaluators `1dbc05fa…` (stage A),
+`6db8e5e6…` (stage B), `8b6c534e…` (stage C acceptance), `2a243518…` (stage C finals and repeats); full hashes available on request.

@@ -206,7 +206,7 @@ is the smoke row of the matrix.
 | `internal` 1 | — | — | unqualified (never produced) |
 | `unavailable`: nothing was sent | P2-02r, P2-02s, P4-02k | B | qualified |
 | Time path: a witness only while the clock plus `clock_uncertainty_ms` lies before the hard end | P3-03-L2000, P3-03c | C | qualified |
-| Time path: P without a witness is `unknown`; others get `pending-transition` until the hull; then a reclaim | P3-05 | C | qualified |
+| Time path: the pending write (P) without a witness is `unknown`; others get `pending-transition` until the hull; then a reclaim | P3-05 | C | qualified |
 | A renew sent before the hard end that lands after it: capped at the hard end, no `live` right after it | P3-04 | C | qualified |
 | Stored timing is used as-is; a configuration change does not move it | P3-06 | C | qualified |
 | The clock rules hold with `clock_uncertainty_ms` 2000 | P3-01-A0 to -A2000, P3-02-L0, -L2000, P3-03-L2000 | C | qualified (2000 ms) |

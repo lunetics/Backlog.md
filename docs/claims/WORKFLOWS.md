@@ -90,7 +90,7 @@ flowchart TD
     timing -->|lease: fresh window| applied["applied"]
     timing -->|hard end| tb{"--time-box"}
     tb -->|preserve: keeps the end| applied
-    tb -->|"restart --hard-end: new time box"| path["time path: P, witness, A"]
+    tb -->|"restart --hard-end: new time box"| path["time path: pending write (P), witness, confirmation (A)"]
     path --> applied
     tb -->|"restart without --hard-end"| rejected["rejected, requires-time-path: the designed stop"]
     applied --> receiver["receiver: claim list shows held; renews under its own context"]

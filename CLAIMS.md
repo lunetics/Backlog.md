@@ -373,7 +373,7 @@ flowchart TD
     tb -->|"absent, no transfer_time_box key"| required
     tb -->|preserve| preserve["applied: hard end kept"]
     tb -->|"restart without --hard-end"| path["rejected, requires-time-path"]
-    tb -->|"restart --hard-end later-hard-end"| restart["time path: P, witness, A (S14)"]
+    tb -->|"restart --hard-end later-hard-end"| restart["time path (S14): pending write (P), witness, confirmation (A)"]
     restart --> confirmed["applied: phase confirmed, new hard end"]
 ```
 
@@ -475,9 +475,10 @@ backlog claim acquire BACK-2 --owner agent-a --context <context-a> --hard-end <h
 ```
 
 `--time-box restart --hard-end <later-hard-end>` hands the claim to `agent-b` with a new, later hard end. Because it
-extends the claim, the transfer takes the time path of S13: P, the witness, then A. `agent-a` stops working on the
-ticket before the call. The result is `applied` with `transition.phase` `confirmed` and `sends` 2. `rights` is the
-sender's view, so it shows `foreign`. A hard end earlier than or equal to the stored one would be written in one step.
+extends the claim, the transfer takes the time path of S13: the pending write (P), the witness, then the
+confirmation (A). `agent-a` stops working on the ticket before the call. The result is `applied` with
+`transition.phase` `confirmed` and `sends` 2. `rights` is the sender's view, so it shows `foreign`. A hard end
+earlier than or equal to the stored one would be written in one step.
 
 <!-- example S14.2: status=applied exit=0 -->
 ```bash

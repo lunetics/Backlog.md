@@ -118,7 +118,7 @@ row passes only when all of them held.
 - Guards: `k20a-gsplit1` (split-endpoint): predicted red, measured red 6/6, 6 at `"exists"`; `k20a-ggate3` (gate-bypass): not predicted, measured green 6/6.
 - Evidence: `k20a-green1`, `S-01 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/S-01/`.
 
-### P1 Vergabe und Transfer (stage A)
+### P1 Acquire and transfer (stage A)
 
 **P1-01** — two clients race acquire on one ticket: exactly one applied. Refs: M-01, R-01, Q-01.
 
@@ -213,7 +213,7 @@ row passes only when all of them held.
 - Guards: `k20a-gsplit1` (split-endpoint): predicted red, measured red 2/2, 2 at `"cause": "stale"` + `"outcome": "applied"`; `k20a-ggate3` (gate-bypass): predicted red, measured red 2/2, 2 at `waitEntered`.
 - Evidence: `k20a-green1`, `P1-08 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P1-08/`.
 
-### P2 Ausfall und Wiederaufnahme (stage B)
+### P2 Failure and resumption (stage B)
 
 **P2-01** — lost reply after the effect with the query cut: unknown, pause, resolve stored, retry without a send. Refs: M-21, Q-03, R-10, R-11.
 
@@ -283,7 +283,7 @@ row passes only when all of them held.
 - Guards: `k20b-injoff2` (injection-off): not predicted, measured green 2/2.
 - Evidence: `k20b-green2`, `P2-05 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P2-05/`.
 
-### P3 Zeitregeln (stage C)
+### P3 Time rules (stage C)
 
 **P3-01-A0** — reclaim 5 s before the true boundary, reclaimer clock 0 ms ahead: not yet. Refs: Q-12, O-02, CLAIM-TIME-001, M-15.
 
@@ -413,7 +413,7 @@ row passes only when all of them held.
 - Guards: `k20c-gft1` (faketime-off): not predicted, measured green 1/1.
 - Evidence: `k20c-final1`, `P3-08 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-08/`.
 
-### P4 Rückholung (stage B)
+### P4 Reclaim (stage B)
 
 **P4-01** — batch: one reclaim ends unknown, the others go on; unknown stays with its ticket. Refs: M-24, Q-19, RECOVERY-UNKNOWN-CONTINUE.
 
@@ -507,7 +507,7 @@ row passes only when all of them held.
 - Guards: `k20b-injoff2` (injection-off): not predicted, measured green 2/2.
 - Evidence: `k20b-green2`, `P5-04 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P5-04/`.
 
-### P6 Betrieb (stage C; the size run)
+### P6 Operations (stage C; the size run)
 
 **P6-01** — restore of an older backup + install-epoch: every ticket free in the new epoch, old proofs and histories void. Refs: M-33, Q-16, Q-26, CLAIM-RESTORE-001, O-04, O-05.
 
@@ -648,7 +648,7 @@ row passes only when all of them held.
   ran under {rateKBps: 128}, set before the first call, unchanged inside the window (our `size-evidence.py`).
 - Evidence: `k20c-size3`, `P6-11-N1000-BW [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P6-11-N1000-BW/`. Cross-check only: `k20c-size2` did not reach this case (H-10).
 
-### P7 Speicherformat und Preflight (stage A)
+### P7 Storage format and preflight (stage A)
 
 **P7-01** — concurrent init with two formats: exactly one binding format, the loser reports the conflict. Refs: M-39, R-32, Q-14.
 

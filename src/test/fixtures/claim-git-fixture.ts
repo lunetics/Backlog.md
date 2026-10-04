@@ -251,6 +251,8 @@ export class DropProxy {
 	private readonly listener: Server;
 	private readonly sockets = new Set<Socket>();
 	private dropPromise: Promise<void> | undefined;
+	private holding = false;
+	private readonly withheld: Buffer[] = [];
 
 	private constructor(listener: Server, port: number) {
 		this.listener = listener;
@@ -277,12 +279,38 @@ export class DropProxy {
 			proxy.sockets.add(upstream);
 			client.on("error", () => undefined);
 			upstream.on("error", () => client.destroy());
-			client.pipe(upstream).pipe(client);
+			client.pipe(upstream);
+			upstream.on("data", (chunk: Buffer) => {
+				if (proxy.holding) proxy.withheld.push(chunk);
+				else client.write(chunk);
+			});
+			upstream.once("end", () => {
+				if (!proxy.holding) client.end();
+			});
 			const forget = (socket: Socket) => () => proxy.sockets.delete(socket);
 			client.once("close", forget(client));
 			upstream.once("close", forget(upstream));
 		});
 		return proxy;
+	}
+
+	/**
+	 * From now on keeps server-to-client bytes here instead of forwarding them. Called while pre-receive holds, the
+	 * client can never see the status report: receive-pack sends it only after the hook and the ref update.
+	 */
+	holdReplies(): void {
+		this.holding = true;
+	}
+
+	/** Waits, bounded by COMMAND_TIMEOUT, until the withheld bytes contain `text`, e.g. the server's `ok <ref>`. */
+	async untilWithheld(text: string): Promise<void> {
+		const deadline = Date.now() + COMMAND_TIMEOUT;
+		while (!Buffer.concat(this.withheld).includes(text)) {
+			if (Date.now() > deadline) {
+				throw new Error(`drop proxy: ${Buffer.concat(this.withheld).length} bytes withheld, none with "${text}"`);
+			}
+			await Bun.sleep(10);
+		}
 	}
 
 	async drop(): Promise<void> {

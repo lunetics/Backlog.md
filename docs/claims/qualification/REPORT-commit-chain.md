@@ -16,7 +16,7 @@ not part of this repository. The user-facing summary is
 - **Date:** 2026-10-02. Run 1 spans 2026-09-30 16:29 to 2026-10-02 01:38 CEST (first step of `k20a-green1`, last step of `k20c-size3`); run 2 spans 2026-10-02 01:39 to 04:30 CEST (first step of `k20a-rep2`, last step of `k20c-rep1`).
 - **Run 1 of 2.** The rows, numbers and evidence pointers below name run 1 of each stage. Run 2 of the final matrix
   (contract point 2, addendum 3 point 3) matched run 1 in every verdict, each with k20.py `2a243518`, product 612/0
-  vs `fd23b8d`, and confirmed by the test author, who re-read each run: `k20a-rep2` GREEN 124/124; `k20b-rep4` GREEN 115/115
+  vs `fd23b8d`, re-read run by run: `k20a-rep2` GREEN 124/124; `k20b-rep4` GREEN 115/115
   (`k20b-rep3` excluded, harness defect H-12); `k20c-rep1` GREEN 87/87. The size stage has one
   run by decision (n = 1, empty spread list).
 - **Run 3.** The same matrix ran once more on the published revision `cb45f9f` (`backlog --version` 1.53.0): `k20a-native1` 124/124, `k20b-native1` 115/115, `k20c-native1` 87/87, `k20c-size-native1` 13/13, every check with the status and completeness of run 1. `src/claims/QUALIFICATION.md` names those runs; the rows below keep their run-1 evidence pointers.
@@ -306,11 +306,11 @@ row passes only when all of them held.
 - Guards: `k20c-gft1` (faketime-off): not predicted, measured green 1/1.
 - Evidence: `k20c-final1`, `P3-01-A2000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-01-A2000/`.
 
-**P3-01-A8000** — reclaim 5 s before the true boundary, reclaimer clock 8000 ms ahead: early takeover by S − U (D7). Refs: Q-12, O-02, CLAIM-TIME-001, M-15.
+**P3-01-A8000** — reclaim 5 s before the true boundary, reclaimer clock 8000 ms ahead: early takeover by S − U (a documented consequence of the clock bound, not a defect). Refs: Q-12, O-02, CLAIM-TIME-001, M-15.
 
 - Combos (raw/ssh (proxied, latency 0)): `raw/ssh/commit-chain`; `k20c-final1` 1/1 pass.
 - Clock: reclaimer clock +8000 ms (4U); `lease_ttl_ms` 20000, `reclaim_grace_ms` 5000, U = `clock_uncertainty_ms` 2000; measured skew steps at +8000 ms. Injection: none.
-- Observed (as asserted): D7 (a): b's reclaim spawned 5 s before R: `applied`, `sends` 1, and the call ENDED before R (early by up to S − U).
+- Observed (as asserted): documented consequence (a): b's reclaim spawned 5 s before R: `applied`, `sends` 1, and the call ENDED before R (early by up to S − U).
 - Guards: `k20c-gft1` (faketime-off): predicted red, measured red 1/1, 1 at `"applied"`.
 - Evidence: `k20c-final1`, `P3-01-A8000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-01-A8000/`.
 
@@ -338,11 +338,11 @@ row passes only when all of them held.
 - Guards: `k20c-gft1` (faketime-off): not predicted, measured green 1/1.
 - Evidence: `k20c-final1`, `P3-02-L2000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-02-L2000/`.
 
-**P3-02-L8000** — 0.5 s after the true hard end, holder clock 8000 ms behind: false live work right (D7). Refs: Q-12, O-02, M-16, CLAIM-TIME-001.
+**P3-02-L8000** — 0.5 s after the true hard end, holder clock 8000 ms behind: false live work right (a documented consequence, not a defect). Refs: Q-12, O-02, M-16, CLAIM-TIME-001.
 
 - Combos (raw/ssh (proxied, latency 0)): `raw/ssh/commit-chain`; `k20c-final1` 1/1 pass.
 - Clock: holder clock −8000 ms; `lease_ttl_ms` 60000, hard end H = now + 25 s; measured skew steps at -8000 ms. Injection: none.
-- Observed (as asserted): Acquire `planned.capped` true, `leaseEnd` = `hardEnd` = H; the holder's `claim list --context` 0.5 s after H: `workRight` `live` (D7 (b): false live right). Observer `active` `agent-a`.
+- Observed (as asserted): Acquire `planned.capped` true, `leaseEnd` = `hardEnd` = H; the holder's `claim list --context` 0.5 s after H: `workRight` `live` (documented consequence (b): false live right). Observer `active` `agent-a`.
 - Guards: `k20c-gft1` (faketime-off): predicted red, measured red 1/1, 1 at `"live"`.
 - Evidence: `k20c-final1`, `P3-02-L8000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-02-L8000/`.
 
@@ -354,11 +354,11 @@ row passes only when all of them held.
 - Guards: `k20c-gft1` (faketime-off): not predicted, measured green 1/1.
 - Evidence: `k20c-final1`, `P3-03-L2000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-03-L2000/`.
 
-**P3-03-L8000** — change-bounds to a later hard end 0.2 s after the true hard end, clock 8000 ms behind: false witness, confirmed (D7). Refs: O-02, M-36, Q-24, CLAIM-TIME-001.
+**P3-03-L8000** — change-bounds to a later hard end 0.2 s after the true hard end, clock 8000 ms behind: false witness, confirmed (a documented consequence, not a defect). Refs: O-02, M-36, Q-24, CLAIM-TIME-001.
 
 - Combos (raw/ssh (proxied, latency 0)): `raw/ssh/commit-chain`; `k20c-final1` 1/1 pass.
 - Clock: holder clock −8000 ms; `lifetime_mode: hard`, grace 5000, U 2000; measured skew steps at -8000 ms. Injection: none.
-- Observed (as asserted): D7 (c): `change-bounds` to H + 10 s started after H: `applied`, `transition.phase` `confirmed` (a false witness); a true-clock reclaim by b after the OLD boundary (H + 5000 + U + 500) is `rejected` `not-yet`: the later hard end holds.
+- Observed (as asserted): documented consequence (c): `change-bounds` to H + 10 s started after H: `applied`, `transition.phase` `confirmed` (a false witness); a true-clock reclaim by b after the OLD boundary (H + 5000 + U + 500) is `rejected` `not-yet`: the later hard end holds.
 - Guards: `k20c-gft1` (faketime-off): predicted red, measured red 1/1, 1 at `"confirmed"`.
 - Evidence: `k20c-final1`, `P3-03-L8000 [<combo>] #<rep>` in tests.log (K20 steps, K20-ROW), documents in docs.jsonl, raw outputs under `outputs/P3-03-L8000/`.
 
@@ -714,7 +714,7 @@ row passes only when all of them held.
 With U = 2000 ms every skew S ≤ U behaved like a true clock: the fast-clock reclaims at +1000 and +2000 ms were
 `not-yet` with the true boundary, and the slow-clock holders at −2000 ms had no live work right after the hard end and
 could not record a witness (`hard-expired`, nothing sent). At S = 8000 ms (4U) the three documented consequences of
-CLAIM-TIME-001 appeared (decision D7). Edges for `commit-chain` (`k20c-final1`, raw/ssh/commit-chain; R = reclaim boundary, H = hard
+CLAIM-TIME-001 appeared (documented consequences of the bound, not defects). Edges for `commit-chain` (`k20c-final1`, raw/ssh/commit-chain; R = reclaim boundary, H = hard
 end; start/end are the call's own instants on the true clock; the clock read lies between them):
 
 | row | skew ms | status | detail | start | end | measured offset ms |
@@ -926,7 +926,7 @@ part of this repository):
 - **P2-01q** — the row read the gate instant (epoch seconds) as milliseconds and passed with `applied` unmeasured in
   `k20b-green1`; fix ×1000 and pin `storage.kind` `queried`; pair: `k20b-green2` shows `queried` 6/6.
 - **P3 time edges** — the product reads its clock after its store and ticket reads, so at S = 2U no spawn instant is
-  both entitled and before R; the positive D7 rows use S = 4U = 8000 ms (ids A8000/L8000 replace A4000/L4000).
+  both entitled and before R; the positive clock-skew rows use S = 4U = 8000 ms (ids A8000/L8000 replace A4000/L4000).
 - **P3-05** — an acquire under lifetime `hard` needs `--hard-end` (`hard-end-required` otherwise); the row passes it.
 - **P6-01w** — a's own earlier release stays outstanding after a restore (pause rule) and pauses a's context; the row
   frees the ticket by emergency release instead.
@@ -957,8 +957,8 @@ part of this repository):
 - Write-path isolation on any host: no host was shown to cut off the write paths for `install-epoch`.
 - Pushes that passed a new gate being stopped or awaited (other than the harness's own gates).
 - Replicas and mirrors; clients older than this version.
-- GitHub, GitLab, Forgejo and every Git or Gitea version other than the ones named (D1, D5).
-- macOS, win32, NFS and every non-Linux platform (D5).
+- GitHub, GitLab, Forgejo and every Git or Gitea version other than the ones named (only those were measured; the report does not extrapolate).
+- macOS, win32, NFS and every non-Linux platform (Linux containers only).
 - `git://` as a production transport: control transport only, unauthenticated.
 - A Git credential helper: HTTP authentication ran through `GIT_ASKPASS`.
 - The honesty pins of the size rows are guard-proven in no stage: no harness defect makes the product lie (our
@@ -976,7 +976,7 @@ part of this repository):
 ## 7. Reproduction
 
 The archives (`artifacts/<runid>/`), the harness and the evaluators are not part of this repository, and neither are
-the helper scripts `d7-evidence.py` and `size-evidence.py` that computed the D7 edges and the size evidence from the
+the two helper scripts that computed the clock-skew edges and the size evidence from the
 archives. The evaluator's sha256 is recorded in every archive and checked at evaluation. The frozen hashes below
 identify the scenario files and the evaluators used.
 

@@ -15,8 +15,8 @@ not part of this repository; the tests are, under `src/test/claim-*.test.ts`.
 
 The test suite ran in a container built from `oven/bun:1.3.14` with a read-only root filesystem, no network, one
 CPU, 2 GB of memory and 256 processes, in four modes: the CLI suites, the storage adapter suites with their Git
-servers, the configuration suites, and upstream's own CI line. 245 archived container runs over the work, of
-which 152 ended with exit code 0 and 92 with a non-zero code (intended RED runs and harness iterations included;
+servers, the configuration suites, and upstream's own CI line. 247 archived container runs over the work, of
+which 154 ended with exit code 0 and 92 with a non-zero code (intended RED runs and harness iterations included;
 one archive has no exit code).
 
 The published head measures, per commit of the series on top of upstream `69e7b15`:
@@ -31,6 +31,7 @@ The published head measures, per commit of the series on top of upstream `69e7b1
 | claim owner in the browser | 1049 / 0 | 1022 / 1 / 0 |
 | qualification record | 1049 / 0 | 1022 / 1 / 0 |
 | Git's own result on a held pipe | 1049 / 0 | 1025 / 1 / 0 |
+| internal test rows named by topic | 1049 / 0 | 1025 / 1 / 0 |
 
 Every archive carries the source it tested, compared by Git blob hash against the commit; types and formatting
 were clean in every run.
@@ -52,6 +53,7 @@ isolation mode and a 10 s timeout per test.
 | the clean-up commit | 3579 / 9 / 0 | all green, Windows included |
 | the verification commit | 3579 / 9 / 0 | macOS green; Windows as described below |
 | the held-pipe fix | 3582 / 9 / 0 | macOS green; ubuntu green on its second run after one upstream MCP test failed once; Windows red, then green |
+| internal test rows named by topic | 3582 / 9 / 0 | macOS green; Windows as described below |
 | the published head | 3582 / 9 / 0 | macOS green; Windows as described below |
 
 The Windows job flips between green and red at the 10 s test timeout. On the revisions of this series that ran on
@@ -91,12 +93,13 @@ part of the claims work.
 - A stage counted only after a guard run, with the harness deliberately broken in one place, turned exactly the
   predicted checks red and nothing else: endpoints split across two repositories (93 checks red), the push gate
   bypassed (54), fault injection switched off (54), the clock shift switched off (9).
-- The matrix ran four times: twice on the revision before the history was cleaned up (`k20a-green1`,
+- The matrix ran five times: twice on the revision before the history was cleaned up (`k20a-green1`,
   `k20b-green2`, `k20c-final1`, `k20c-size3`; then `k20a-rep2`, `k20b-rep4`, `k20c-rep1`), once on `cb45f9f`
-  (`k20a-native1`, `k20b-native1`, `k20c-native1`, `k20c-size-native1`) and once on the published revision
-  `bce2acc` (`k20a-native2`, `k20b-native2`, `k20c-native2`, `k20c-size-native2`). Every official run ended green
-  with 0 findings; on the published revision every check kept its status and completeness. 18 official runs,
-  1793 checks; 53 archived qualification runs in all, the rest being dry runs, guard runs and harness iterations.
+  (`k20a-native1`, `k20b-native1`, `k20c-native1`, `k20c-size-native1`), once on `bce2acc` (`k20a-native2`,
+  `k20b-native2`, `k20c-native2`, `k20c-size-native2`) and once on the published revision `2c8d849`
+  (`k20a-native3`, `k20b-native3`, `k20c-native3`, `k20c-size-native3`). Every official run ended green with
+  0 findings; on the published revision every check kept its status and completeness. 22 official runs,
+  2132 checks; 57 archived qualification runs in all, the rest being dry runs, guard runs and harness iterations.
 - Evaluation: a frozen evaluator script whose sha256 the driver records in every archive and checks at
   evaluation; ten frozen scenario files identified by hash; the product in every archive compared by blob hash
   against the revision; a leak scan with eight needles over every captured output; coverage of every expected
@@ -116,4 +119,4 @@ themselves (logs, step documents, raw outputs) are not in this repository.
 
 ## Calendar
 
-2026-09-24 to 2026-10-04, eleven consecutive days with dated ledger entries, 298 archived container runs in all.
+2026-09-24 to 2026-10-05, twelve consecutive days with dated ledger entries, 304 archived container runs in all.

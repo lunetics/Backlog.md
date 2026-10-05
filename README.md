@@ -173,7 +173,7 @@ The claims of this branch were exercised end to end against real Git servers, fr
 - [docs/claims/](docs/claims/): scope and non-scope, workflow proposals for teams and agent fleets, known limits
 - [lunetics/backlog-md-claims-qualification](https://github.com/lunetics/backlog-md-claims-qualification): what was tested and with which bounds, the report of every check, the sanitised run archives
 
-What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
+What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. The workflow proposals in [docs/claims/WORKFLOWS.md](docs/claims/WORKFLOWS.md) show how to work with these limits. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
 
 ---
 

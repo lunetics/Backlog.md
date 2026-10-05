@@ -1,10 +1,10 @@
 # Claims: workflow proposals
 
-Six ways to run claims in a team or an agent fleet. Each proposal is built from the worked workflows (S1 to S15)
+Thirteen ways to run claims in a team or an agent fleet. Each proposal is built from the worked workflows (S1 to S15)
 and recipes in [CLAIMS.md](../../CLAIMS.md), which carry the commands and the expected JSON. Where a proposal
 rests on something that was not measured, it says so.
 
-Common ground for all six: every agent has its own private context directory; agents read the JSON and never
+Common ground for all thirteen: every agent has its own private context directory; agents read the JSON and never
 parse the text; a lost reply is resolved before anything is retried (recipe "Lost reply: resolve, then retry");
 and nobody acts on `unknown` (recipe "Resolve before acting on unknown").
 
@@ -96,7 +96,7 @@ flowchart TD
     applied --> receiver["receiver: claim list shows held; renews under its own context"]
 ```
 
-Builds on [S7], [S13], [S14]. Measured: transfer and the time path under skewed clocks (stages A and C).
+Builds on [S7], [S13], [S14]. Tested: transfer and the time path under skewed clocks ([the evidence repository][evidence]).
 
 ## 4. People and agents on one backlog
 
@@ -123,9 +123,9 @@ flowchart TD
     person -.- former["the former holder keeps running until its next renew or list"]
 ```
 
-Builds on [S7], [S9], [S12] and the reference section "Emergency release and new epochs". Measured: bound changes,
-reclaim after the boundary, emergency release. Not measured: the agent's own stopping logic, which is outside
-claims by design ("No worker stopping").
+Builds on [S7], [S9], [S12] and the reference section "Emergency release and new epochs". Tested: bound changes,
+reclaim after the boundary, emergency release ([the evidence repository][evidence]). Not tested: the agent's own stopping
+logic, which is outside claims by design ("No worker stopping", proposal 9).
 
 ## 5. Recovery runbook
 
@@ -155,13 +155,13 @@ flowchart LR
     restored --> epoch["install a new epoch; paused contexts resume from there"]
 ```
 
-Builds on [S6], [S8], [S10], [S15] and the recipes named. Measured: lost replies, batch reclaim with preview, restore
-and new epochs, incompatible data (stages B and C). Not measured: how a context that the restore paused
+Builds on [S6], [S8], [S10], [S15] and the recipes named. Tested: lost replies, batch reclaim with preview, restore
+and new epochs, incompatible data ([the evidence repository][evidence]). Not tested: how a context that the restore paused
 gets out of the pause beyond one check that the restored proof works again.
 
 ## 6. Claims in a CI job
 
-A proposal only; nothing of it was measured.
+A proposal only; nothing of it was tested.
 
 1. The job acquires with `--hard-end` set to the job's own deadline, so a killed job frees the ticket by itself:
    after the hard end plus the grace it is reclaimable.
@@ -186,6 +186,207 @@ sequenceDiagram
 
 The lease mode is the wrong fit here because nothing renews after the runner kills the job; the hard end is the
 designed tool for that case.
+
+## 7. An external effect under a claim
+
+For an agent whose work ends in something that cannot be undone: a push, a deploy, a payment, a mail.
+
+1. Renew right before the effect and go on only when that renew is `applied` (recipe "Renew before an irreversible
+   effect", [S2]). `rejected`, `stale` or `unknown` from that renew means: do not run the effect; on `unknown`,
+   resolve first.
+2. Make the effect idempotent or key it with the ticket and the claim, so that a second run of the same step
+   changes nothing and a run under a claim that has ended is recognised by the receiving system.
+3. Accept that a window remains. The claim can end between the renew and the effect, and nothing stops a write by
+   an agent whose claim was taken over: a claim narrows the window, it is not a fence. Where the effect must be
+   exclusive, the receiving system has to check.
+
+```mermaid
+flowchart TD
+    work["work reaches an irreversible step: a push, a deploy, a payment, a mail"] --> renew["claim renew"]
+    renew -->|applied| effect["run the effect, idempotent or keyed by ticket and claim"]
+    renew -->|rejected or stale| stop(["do not run it: the ticket is someone else's"])
+    renew -->|unknown| resolve["claim resolve, then claim retry"]
+    resolve --> renew
+    effect -.- window["a window remains: the claim can end between the renew and the effect"]
+```
+
+Builds on [S2], the recipe "Renew before an irreversible effect" and proposal 1 step 2. Tested: the renew paths and
+the statuses they end with ([the evidence repository][evidence]). Not tested: the window itself cannot be tested away, and
+nothing in claims measures what an external system does with a stale writer.
+
+## 8. Spread work over several workers
+
+For a fleet whose tickets should not all be fought over by every worker.
+
+1. Partition the backlog with the filter flags of `claim next` (`--labels`, `--milestone`, `--priority`, …), one
+   filter set per worker, so that two workers rarely meet at the same first candidate ([S4], proposal 2).
+2. A worker that loses repeatedly with `not-free` widens its filters or waits a random interval before its next
+   `claim next`. There is no fairness and no queue: the coordination area decides each race ([S3]).
+3. A coordinator reads `backlog claim list --json` to see the load per owner and adjusts the partition. Nothing
+   arbitrates for you.
+
+```mermaid
+flowchart LR
+    backlog["backlog"] --> f1["filter set 1"]
+    backlog --> f2["filter set 2"]
+    backlog --> f3["filter set 3"]
+    f1 --> w1["worker 1: claim next with filter set 1"]
+    f2 --> w2["worker 2: claim next with filter set 2"]
+    f3 --> w3["worker 3: claim next with filter set 3"]
+    w1 -->|repeated not-free| widen["widen the filters or wait a random interval"]
+    widen --> w1
+    coord["coordinator: claim list --json"] -.->|adjusts the partition| backlog
+```
+
+Builds on [S3], [S4], [S5] and proposal 2. Tested: races between three clients and `claim next` under contention
+([the evidence repository][evidence]). Not tested: more than three clients, and whether a partition reduces the losses, which
+depends on your backlog.
+
+## 9. Stop a former holder safely
+
+For the operator who has to take a ticket from a running worker.
+
+1. A worker written like proposal 1 stops itself: on `rejected` or `stale` from a renew it stops work on the ticket
+   and treats it as someone else's ([S11]). Such a worker needs no outside stop, only a freed ticket.
+2. Free the ticket: wait for the boundary and `claim reclaim`, or, as a listed recovery authority,
+   `claim emergency-release` (proposal 4 step 2, [S10]).
+3. If the worker does not stop itself, stop the process by whatever runs it: the fleet manager, the CI runner,
+   `kill`. Claims do not; the former holder keeps running until its next `renew` or `list`.
+4. Only then reassign: set the task's assignee, or let `claim next` take the ticket. Nothing reassigns
+   automatically, and a running `claim next` loop may take the freed ticket at once, so the order is free, stop,
+   reassign.
+
+```mermaid
+flowchart TD
+    take["a ticket must be taken from a running worker"] --> free["free it after the boundary: claim reclaim"]
+    take --> er["free it now: claim emergency-release by a recovery authority"]
+    free --> self{"does the worker stop itself on rejected or stale?"}
+    er --> self
+    self -->|yes| done["its next renew ends rejected or stale and it stops on its own"]
+    self -->|no| stop["stop the process by whatever runs it: claims do not"]
+    done --> reassign["then set the assignee or let claim next take the ticket"]
+    stop --> reassign
+    reassign -.- loop["a running claim next loop may take the freed ticket at once"]
+```
+
+Builds on [S10], [S11], proposal 4 step 2 and proposal 5. Tested: reclaim after the boundary, emergency release, the
+statuses a former holder sees ([the evidence repository][evidence]). Not tested: the stopping itself, which happens outside
+claims.
+
+## 10. When the Git server is unreachable
+
+For an agent that loses the coordination area in the middle of a ticket.
+
+1. Treat `unavailable` and `unknown` as not knowing. `unavailable` means nothing was sent; `unknown` means the reply
+   was lost and the write may have landed ([S6], [S11]).
+2. Stop irreversible work. A claim is only as current as the last read of the coordination area, and without the
+   endpoint nothing can be acquired, renewed or checked while the lease keeps running out.
+3. When the server is back, `claim resolve` first and act on its answer, then retry once (recipes "Lost reply:
+   resolve, then retry" and "Resolve before acting on unknown"). A renew that comes back `rejected` or `stale`
+   means the ticket moved on while you were away.
+4. Reversible work may continue locally at your own risk; its result is worth keeping only if the claim is still
+   yours afterwards.
+
+```mermaid
+flowchart TD
+    cmd["a claim command"] -->|unavailable: nothing was sent| wait["stop irreversible work, keep reversible work local"]
+    cmd -->|unknown: the reply was lost| wait
+    wait --> back{"is the server reachable again?"}
+    back -->|no| wait
+    back -->|yes| resolve["claim resolve"]
+    resolve -->|the write landed| go["continue and renew as usual"]
+    resolve -->|the write did not land| retry["claim retry, once"]
+    retry -->|applied| go
+    retry -->|rejected or stale| other(["the ticket moved on: treat it as someone else's"])
+```
+
+Builds on [S6], [S11] and the two recipes named. Tested: cut, stalled and throttled links, lost replies ([the evidence repository][evidence]).
+Not tested: an outage longer than a lease, beyond what the lease rules imply.
+
+## 11. Take several tickets together
+
+For work that touches more than one ticket at a time.
+
+1. Acquire the tickets one by one in a fixed order that every agent uses, for example by ticket ID, so that two
+   agents going for the same set never hold one each and wait for the other ([S1], [S3]).
+2. Start work only when every acquire ended `applied`. On the first `rejected`, release everything already held and
+   try again later or with a smaller set. There is no all-or-nothing, no snapshot and no rollback.
+3. Renew every held ticket in the heartbeat loop (proposal 1). A lapsed one is lost on its own; the others are not
+   affected.
+4. Release in any order when done.
+
+```mermaid
+flowchart TD
+    set["a set of tickets, sorted by ID"] --> acq["claim acquire the next ticket of the set"]
+    acq -->|applied, set not complete| acq
+    acq -->|applied, set complete| work["work and renew every held ticket in the heartbeat loop"]
+    acq -->|rejected| release["claim release everything already held"]
+    release --> later(["try again later or with a smaller set"])
+    work --> done["claim release each ticket"]
+```
+
+Builds on [S1], [S3] and proposal 1. Tested: single acquires and races on one ticket ([the evidence repository][evidence]). Not tested:
+this proposal as a whole; no measurement covered sets of tickets.
+
+## 12. Follow owner and ticket changes
+
+For a coordinator or a dashboard that wants to see who holds what and what changed under a holder.
+
+1. Poll `backlog claim list --json` beside `backlog task list --json --revision` at a modest interval and join the
+   two by ticket ID; the reference section "Owner and ticket changes" describes the join. Compare revisions, never
+   infer fields from them.
+2. Expect to see only what this working copy holds: a `revision` changes when the task file in this checkout
+   changes, so pull first if you want foreign edits, and `--watch` may coalesce intermediate edits.
+3. Keep the interval modest. Every poll is a claim read, and a tool that fires Git commands in tight succession is
+   the one that meets the limit in [KNOWN-LIMITS.md](KNOWN-LIMITS.md) ("Other Git commands in the same checkout
+   during a claim read").
+
+```mermaid
+sequenceDiagram
+    participant D as coordinator or dashboard
+    participant C as coordination area
+    participant W as working copy
+    loop every interval, kept modest
+        D->>C: claim list --json
+        C-->>D: owner per ticket
+        D->>W: task list --json --revision
+        W-->>D: revision per task
+        Note over D: join by ticket ID and compare revisions, never infer fields from them
+    end
+```
+
+Builds on proposal 2 step 3, the reference section "Owner and ticket changes" and KNOWN-LIMITS.md. Tested:
+`claim list` up to 1000 claims ([the evidence repository][evidence]), and the poller's limit was measured for the known-limits page.
+Not tested: the join itself at scale.
+
+## 13. Switch claims off cleanly
+
+For a project that stops using claims, or pauses them during maintenance.
+
+1. Set `enabled: false` in the `claims:` block of the project configuration (reference section "Configuration").
+   From then on no new claim can be acquired: `claim acquire` and `claim next` end `claims-disabled`, and a bound
+   change that would extend a claim stays `rejected`.
+2. Existing claims keep their times. Let the holders finish and release, or wait for the boundaries and
+   `claim reclaim`; renew, release, reclaim after the boundary and transfer without a new hard end still work.
+3. Stop the agents' loops: a heartbeat loop keeps renewing a held claim until it releases. `claim emergency-release`
+   and `claim install-epoch` run under `enabled: false` too, for the operator who needs them.
+4. Nothing is cleaned up by itself. When the claims should go for good, release or reclaim everything first, then
+   take the block out; the coordination area keeps its history either way.
+
+```mermaid
+flowchart TD
+    off["set enabled: false in the claims block"] --> new["new claims: acquire and next end claims-disabled"]
+    off --> held["held claims keep their times"]
+    held -->|the holders finish| release["claim release"]
+    held -->|a holder is gone| reclaim["after the boundary: claim reclaim"]
+    release --> clean["nothing is cleaned up by itself"]
+    reclaim --> clean
+    clean --> gone["for good: release or reclaim everything, then take the block out"]
+```
+
+Builds on the reference section "Configuration" and the bullet "`enabled: false` only stops new claims" in
+CLAIMS.md. Tested: `enabled: false` against held claims ([the evidence repository][evidence]). Not tested: the sequence as a whole; it is a
+proposal.
 
 [S1]: ../../CLAIMS.md#s1-first-claim
 [S2]: ../../CLAIMS.md#s2-heartbeat-under-a-lease

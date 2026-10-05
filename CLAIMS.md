@@ -50,7 +50,8 @@ stateDiagram-v2
 A project needs three commands once. `backlog claim setup` writes the `claims:` block into the project configuration.
 It needs the Git URL of the coordination area (`--endpoint`, a `git://`, `ssh://`, `http://`, `https://` or `file://`
 URL every agent can push to), the storage format (`blob`, `tree` or `commit-chain`) and the largest deviation of any
-host clock from the true time (`--clock-uncertainty-ms`). It writes twelve keys, among them `enabled: true`,
+host clock from the true time (`--clock-uncertainty-ms`). Keep every participant's clock NTP-synchronised; claims
+assume it and tolerate only the configured uncertainty. It writes twelve keys, among them `enabled: true`,
 `lifetime_mode: lease`, `lease_ttl_ms: 300000` and `reclaim_grace_ms: 600000`, and never overwrites an existing block.
 `backlog claim init` then creates the coordination area; running it again reports `exists`. Each agent finally
 creates its own context with `backlog claim context create`, which prints only the context ID. The handle is the
@@ -954,13 +955,17 @@ backlog claim acquire BACK-1 --owner agent-a --context <context-a> --json
 ## What claims do not do
 
 - **No fencing.** `applied` and `rights` describe the observed state; they are no permission for an external effect.
-  Nothing stops a write by an agent whose claim has already ended or been taken over.
+  Nothing stops a write by an agent whose claim has already ended or been taken over. See the recipe "Renew before
+  an irreversible effect" and [proposal 7](docs/claims/WORKFLOWS.md#7-an-external-effect-under-a-claim) of the
+  workflow proposals.
 - **No scheduler.** Claims assign no work and keep no queue. `claim next` has no fairness: two agents with the same
-  filters meet at the same first candidate. Heartbeats are the agent's own loop.
+  filters meet at the same first candidate. Heartbeats are the agent's own loop. See
+  [proposal 8](docs/claims/WORKFLOWS.md#8-spread-work-over-several-workers).
 - **No worker stopping.** When a lease lapses or a claim is reclaimed, the former holder keeps running. It learns about
-  it from its next `renew` or `list`.
+  it from its next `renew` or `list`. See [proposal 9](docs/claims/WORKFLOWS.md#9-stop-a-former-holder-safely).
 - **No offline exclusivity.** A claim is only as current as the last read of the coordination area, and it is no
-  offline right to work. Without the endpoint nothing can be acquired, renewed or checked.
+  offline right to work. Without the endpoint nothing can be acquired, renewed or checked. See
+  [proposal 10](docs/claims/WORKFLOWS.md#10-when-the-git-server-is-unreachable).
 - **No clock check.** Claims rely on every host clock staying within `clock_uncertainty_ms` of the true time and
   detect none that does not. A clock that runs ahead by more than that can reclaim a claim before its reclaim
   boundary, and a clock that lags by more still reads its own work right as `live` after the hard end — each by
@@ -971,25 +976,30 @@ backlog claim acquire BACK-1 --owner agent-a --context <context-a> --json
   configuration can list their own context in `claims.recovery_authorities`.
 - **No automatic reassignment after an emergency release.** `claim emergency-release` frees the ticket and assigns it
   to nobody. The former holder keeps running until its next `renew` or `list`, and a running `claim next` loop may
-  take the ticket at once; set the task's status or assignee, or stop the workers, first.
+  take the ticket at once; set the task's status or assignee, or stop the workers, first. See
+  [proposal 9](docs/claims/WORKFLOWS.md#9-stop-a-former-holder-safely) and the recovery runbook,
+  [proposal 5](docs/claims/WORKFLOWS.md#5-recovery-runbook).
 - **No quiescence proof.** Nothing in claims shows that every writer has stopped: deleting refs, an empty
   `claim list`, a client timeout or two scans with the same refs prove no quiescence, and `--isolation-confirmed` is
-  only your statement. `claim install-epoch` detects some writes that break isolation, never all.
+  only your statement. `claim install-epoch` detects some writes that break isolation, never all. See the recipe
+  "Install a new epoch after a restore".
 - **No task changes.** Claim commands never change a task's status, assignee or file, and never commit.
 - **No watch engine.** `backlog task list --json --revision` adds a `revision` per task that a workflow can keep beside
   the owner from `claim list`; "Owner and ticket changes" in `backlog instructions claims` describes the join.
   `--revision` reports what this working copy holds. It is not a watch engine and does not capture every foreign
   change: edits on other branches or remotes appear only once they reach this working copy, and `--watch` may
-  coalesce intermediate edits.
+  coalesce intermediate edits. See [proposal 12](docs/claims/WORKFLOWS.md#12-follow-owner-and-ticket-changes).
 - **`enabled: false` only stops new claims.** It releases nothing, cleans nothing up and sends nothing by itself.
   Existing claims keep their times and can still be renewed, released, reclaimed after their boundary, and
-  transferred without a new hard end.
+  transferred without a new hard end. See [proposal 13](docs/claims/WORKFLOWS.md#13-switch-claims-off-cleanly).
 - **No transaction over several tickets.** `claim reclaim-batch` has no rollback, no all-or-nothing, no atomic
-  snapshot and no batch budget; see "Batch reclaim and preview" in `backlog instructions claims`.
+  snapshot and no batch budget; see "Batch reclaim and preview" in `backlog instructions claims`. See
+  [proposal 11](docs/claims/WORKFLOWS.md#11-take-several-tickets-together) for taking several tickets together.
 - **No time-box extension outside the time path.** A later hard end, by `claim change-bounds` or by a restart with
   `--hard-end`, goes over the time path, and a restart without `--hard-end` stays `rejected` with
-  `requires-time-path`. The section "Time path" of `backlog instructions claims` names what that path does not
-  promise:
+  `requires-time-path`. [S13](#s13-extend-a-hard-end-over-the-time-path) and
+  [proposal 3](docs/claims/WORKFLOWS.md#3-hand-over-between-agents) walk through it. The section "Time path" of
+  `backlog instructions claims` names what that path does not promise:
   - No work right on a pending claim, for anybody, and none from publishing a witness; read your rights afresh.
   - No time authority on the server: a clock that lags by more than `clock_uncertainty_ms` can record a false witness.
   - No rescue of a lost witness: no other context can observe or confirm it, and the ticket stays pending until the

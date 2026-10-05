@@ -114,8 +114,9 @@ operation requires the source to pause. The journal's read-only enumeration and
 the pure pause rule (`src/claims/pause`) report own outstanding intents against
 the observed root for one context; this projection does not consult them, and
 the pause is still no work right. Logical operation outcomes, time witnesses,
-mutations, clock qualification and hosting qualification are separate work
-(the time path adds the first two elsewhere; the clock qualification is measured
-in src/claims/QUALIFICATION.md: U = 2000 ms, see its clock section). This scoped
+mutations, the clock bound and the hosting conditions are separate work
+(the time path adds the first two elsewhere; the clock bound was tested at
+U = 2000 ms: [evidence repository](https://github.com/lunetics/backlog-md-claims-qualification),
+QUALIFICATION.md section "Clock"). This scoped
 projection must not be presented as those guarantees or as an offline right to
 work.

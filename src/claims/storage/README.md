@@ -133,9 +133,9 @@ third one after its writes, which detects some foreign writes, never all: a
 write the endpoint accepts after the last listing, or a receive that passed its
 checks before the swap and lands later, stays unseen until someone reads the
 ticket. Isolating every write path, in-flight receives and ref creation
-included, is the operator's job: the qualification measured the maintenance run
-on a plain Git server, and server garbage collection on the plain server and on
-Gitea (src/claims/QUALIFICATION.md), but no host was shown to isolate the write
+included, is the operator's job: the maintenance run was tested on a plain Git
+server, and server garbage collection on the plain server and on Gitea
+([evidence repository](https://github.com/lunetics/backlog-md-claims-qualification)), but no host was shown to isolate the write
 paths. Clients of a version that reads only epoch 1 treat every later epoch as
 unreadable. The command never changes `config.yml`: after a format change every
 checkout reports `format-mismatch` until the configuration names the new format.
@@ -157,8 +157,9 @@ is rejected.
 
 Receipt retention makes stored data and work grow with the receipt history.
 Commit-chain reads traverse more commits as revisions grow, and tree-format
-receipt work grows with the receipt set. The measured sizes and latencies are
-in the table of src/claims/QUALIFICATION.md. The configured timeout applies to
+receipt work grows with the receipt set. Sizes and latencies up to 1000 claims:
+[evidence repository](https://github.com/lunetics/backlog-md-claims-qualification), QUALIFICATION.md section
+"Sizes and latency". The configured timeout applies to
 each Git command, not to the end-to-end operation. Every claim Git command runs
 in its own process group; a command that exceeds `attempt_timeout_ms` is killed
 together with its transport helpers, and the call returns within the attempt

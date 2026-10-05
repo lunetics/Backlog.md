@@ -3,7 +3,7 @@
 Measured limits of the claims feature, with the conditions under which they were measured. The operational
 observations of the qualification (a host whose hooks hold a ref lock, a restore outside the epoch procedure,
 OpenSSH's login penalties) and the size limits under the default budgets are in
-[QUALIFICATION.md](../../src/claims/QUALIFICATION.md) and are not repeated here.
+the [evidence repository](https://github.com/lunetics/backlog-md-claims-qualification) and are not repeated here.
 
 ## Other Git commands in the same checkout during a claim read
 

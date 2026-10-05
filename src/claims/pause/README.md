@@ -142,5 +142,5 @@ The base claim commands resume an intent from an earlier process as load, query
 bypassing the slot, also after a restart. There `paused` becomes its own JSON
 kind and exit code, and read-only commands never pause. Transfer, resume,
 change-bounds and the time path use the same pause and admission with the same
-key. macOS and NFS are unqualified (src/claims/QUALIFICATION.md: Linux
-containers only); slot retention is unmeasured.
+key. Linux only ([evidence repository](https://github.com/lunetics/backlog-md-claims-qualification));
+slot retention was not tested.

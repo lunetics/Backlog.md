@@ -54,8 +54,9 @@ host clock from the true time (`--clock-uncertainty-ms`). It writes twelve keys,
 `lifetime_mode: lease`, `lease_ttl_ms: 300000` and `reclaim_grace_ms: 600000`, and never overwrites an existing block.
 `backlog claim init` then creates the coordination area; running it again reports `exists`. Each agent finally
 creates its own context with `backlog claim context create`, which prints only the context ID. The handle is the
-parent directory followed by that ID. Qualified hosts, transports and bounds are listed in
-`src/claims/QUALIFICATION.md`; claims are qualified on Linux only, and macOS, Windows and NFS are unqualified.
+parent directory followed by that ID. Which hosts, transports and sizes were tested, and with which bounds, is in
+the [evidence repository](https://github.com/lunetics/backlog-md-claims-qualification): Linux only; macOS, Windows and NFS were
+not tested.
 
 ```text
 backlog claim setup --endpoint <endpoint> --storage-format blob --clock-uncertainty-ms 2000 --json

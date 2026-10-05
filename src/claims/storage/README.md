@@ -92,7 +92,7 @@ is stored as another revision, not by deleting the ref. Reusing an earlier
 payload therefore does not reuse the earlier root. Assignee, agent selection,
 notification and recovery policy belong outside this storage boundary.
 
-## Verification and limits
+## Tests and limits
 
 Run the native storage and primitive integration suites with:
 
@@ -109,7 +109,7 @@ One commit-chain overflow fixture is explicitly skipped: a valid chain of
 `Number.MAX_SAFE_INTEGER` revisions is infeasible to construct; blob/tree cover
 the shared overflow guard and chain tests reject truncated histories.
 
-This does not qualify every Git host, transport helper or platform. Endpoint
+This covers no other Git host, transport helper or platform. Endpoint
 syntax validation is not a hosting guarantee. Per-command timeouts are not a
 proof of end-to-end claim deadlines. The descriptor is not an atomic
 multi-ref migration lock, and the module provides no claim authorization or
@@ -158,8 +158,8 @@ is rejected.
 Receipt retention makes stored data and work grow with the receipt history.
 Commit-chain reads traverse more commits as revisions grow, and tree-format
 receipt work grows with the receipt set. Sizes and latencies up to 1000 claims:
-[evidence repository](https://github.com/lunetics/backlog-md-claims-qualification), QUALIFICATION.md section
-"Sizes and latency". The configured timeout applies to
+[evidence repository](https://github.com/lunetics/backlog-md-claims-qualification), see its table of sizes
+and latencies. The configured timeout applies to
 each Git command, not to the end-to-end operation. Every claim Git command runs
 in its own process group; a command that exceeds `attempt_timeout_ms` is killed
 together with its transport helpers, and the call returns within the attempt

@@ -92,8 +92,8 @@ record. No state needs time, a PID or a cleanup rule to make progress.
 
 ## What the pause proves
 
-Among cooperating processes of the same UID on a local filesystem, qualified
-for Linux only:
+Among cooperating processes of the same UID on a local filesystem, tested
+on Linux only:
 
 1. **No matching record at the scan.** When the journal of the loaded context
    was enumerated, it held no valid record with the same ticket, byte-identical
@@ -128,10 +128,10 @@ for Linux only:
   it.
 - **No protection against non-cooperating writers.** Whoever deletes or
   changes records or slots is not covered.
-- **No qualification** for NFS, CIFS, FUSE, macOS or Windows. On Windows the
+- **Not tested** on NFS, CIFS, FUSE, macOS or Windows. On Windows the
   journal already fails at `process.getuid`.
 - **No retention or cleanup rule.** Slots grow with the journal.
-- **No fencing**, no clock qualification and no endpoint authentication.
+- **No fencing**, no clock check and no endpoint authentication.
 - **No performance promise.** Every executor call enumerates the whole
   journal, with O(n) effort.
 

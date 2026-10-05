@@ -107,12 +107,12 @@ when linking fails (`unavailable`). Admission is idempotent and never waits for
 another call. The executor sends only an `admitted` intent; see
 [pause/README.md](../pause/README.md) for what this proves.
 
-## Qualification scope
+## Tested scope
 
-The intended qualification is Bun on Linux with a local disk-backed filesystem,
+The tested environment is Bun on Linux with a local disk-backed filesystem,
 separate processes, deterministic SIGKILL gates and injected syscall failures.
 A test plan alone is not a passed run.
-Process-crash tests do not qualify physical power loss, storage controllers,
+Process-crash tests say nothing about physical power loss, storage controllers,
 NFS/CIFS/FUSE, Windows or macOS. Unsupported hardlinks or synchronization fail
 closed; there is no rename, database or best-effort fallback.
 

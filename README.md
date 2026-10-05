@@ -164,12 +164,16 @@ If the output is not good enough: clear the plan/notes/final summary, refine the
 
 This fork adds ticket claims to Backlog.md. A claim records which agent or person holds a ticket right now. It lives in a shared Git coordination area that every participant can push to, never in the task file: claim commands never change a task's status, assignee or content, and never commit. Every change is one atomic, conditional write. An acquire lands only if the ticket is still free, a renew only if the claim is still yours; the loser ends `rejected` and nothing is overwritten. Claims come with lease, hard-end and unlimited lifetimes, hand-over between agents, ready selection with a dependency gate, batch reclaim with preview, emergency release and a controlled new-epoch procedure after a restore. The three storage formats (`blob`, `tree`, `commit-chain`) share one contract; the format is a setup choice.
 
+### Tested
+
+The claims of this branch were exercised end to end against real Git servers, from three client containers at once: a plain Git server reached over `git://`, HTTP, HTTPS and OpenSSH, and a Gitea server over HTTP and its built-in SSH. The servers held pushes so that writes really overlapped, a network proxy cut, stalled, slowed and throttled the connection, single clients ran with a shifted clock, and the size went up to 1000 claims. Every check of the four stages passed on revision `2c8d849`, with Git 2.47.3, OpenSSH 10.0p2, Gitea 1.24.7 and Bun 1.3.14. The commits after that revision change only documentation, so the claim code of this head is the tested code. Linux containers only: macOS, Windows, NFS, and other Git hosts (GitHub, GitLab, Forgejo) and versions were not tested. The reports, the method and the sanitised run archives are in [lunetics/backlog-md-claims-qualification](https://github.com/lunetics/backlog-md-claims-qualification).
+
 - [CLAIMS.md](CLAIMS.md): what a claim is, fifteen worked workflows with commands, recovery cases, what claims do not do, how to read the JSON
 - `backlog instructions claims`: the reference for commands, output, status and exit codes, error codes, time path, ready selection, batch reclaim and configuration
-- [QUALIFICATION.md](src/claims/QUALIFICATION.md): what was qualified and with which bounds. A plain Git server (git daemon, HTTP, HTTPS, OpenSSH) and Gitea, three client containers, held pushes, cut and throttled links, shifted clocks, sizes up to 1000 claims. Also what is not qualified.
-- [docs/claims/](docs/claims/): scope and non-scope, workflow proposals for teams and agent fleets, the test effort and evaluation method, known limits
+- [docs/claims/](docs/claims/): scope and non-scope, workflow proposals for teams and agent fleets, known limits
+- [lunetics/backlog-md-claims-qualification](https://github.com/lunetics/backlog-md-claims-qualification): what was tested and with which bounds, the report of every check, the sanitised run archives
 
-What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. Linux is qualified; macOS, Windows and NFS are not. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
+What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
 
 ---
 

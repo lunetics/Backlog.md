@@ -25,7 +25,7 @@ three optional ones, two optional policy keys and one optional authority list:
 | `attempt_timeout_ms` | safe integer, 1 to 2147483647 | always | per Git command, not per attempt |
 | `attempts` | safe integer ≥ 1 | always | counted and returned, not applied here |
 | `operation_budget_ms` | safe integer, 1 to 2147483647 | always | counted and returned, not applied here |
-| `clock_uncertainty_ms` | safe integer, 0 to 2147483647 | optional here | eps; no start value; qualified at 2000 ms (src/claims/QUALIFICATION.md); larger values are unqualified |
+| `clock_uncertainty_ms` | safe integer, 0 to 2147483647 | optional here | eps; no start value; tested up to 2000 ms ([evidence repository](https://github.com/lunetics/backlog-md-claims-qualification)); larger values were not |
 | `retry_pause_base_ms` | safe integer, 0 to 2147483647 | optional here | start value 1000 (`CLAIM_RETRY_START_VALUES`) |
 | `retry_pause_max_ms` | safe integer, 0 to 2147483647, not below the base | optional here | start value 5000; `max < base` is `out-of-range` on this key |
 | `transfer_time_box` | `require-explicit` \| `preserve` \| `restart` | optional everywhere | time-box action of a transfer; absent means `require-explicit` |

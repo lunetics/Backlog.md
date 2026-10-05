@@ -107,7 +107,8 @@ part of the claims work.
 
 The three per-format reports with every row, combination, injection and measured value are in
 [qualification/](qualification/), with a README on the stack and how the archives were evaluated. The archives
-themselves (logs, step documents, raw outputs) are not in this repository.
+themselves (logs, step documents, raw outputs) of the four runs on the published revision are at
+https://github.com/lunetics/backlog-md-claims-qualification, sanitised as described there.
 
 ## Measurements beyond tests
 

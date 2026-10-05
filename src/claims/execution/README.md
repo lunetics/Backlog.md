@@ -3,7 +3,7 @@
 This module is an internal building block, not a public library or a complete
 claim feature. The canonical claim CLI reaches it only through
 `src/claims/surface/`, and so do the MCP claim tools. It composes the
-qualified claim modules for exactly one acquire, renew, release, reclaim,
+tested claim modules for exactly one acquire, renew, release, reclaim,
 transfer, resume or change-bounds and adds no second parser, resolver, clock
 rule or default. Every `operation` result carries `scope:
 "transition-execution-only"`.
@@ -215,7 +215,7 @@ planning.
   projection with `scope: "observed-state-only"`. The DD1 recipe is not
   fencing.
 - **Pause and admission reach one context only.** They hold among cooperating
-  processes of the same UID on a local filesystem, qualified for Linux only.
+  processes of the same UID on a local filesystem, tested on Linux only.
   A call that is not paused has no work right. Other contexts, the recovery
   source context, copied contexts, other endpoint spellings and other tickets
   are not seen; there is no liveness (no timeout, no giving up), no cleanup of
@@ -225,7 +225,7 @@ planning.
 - **`applied` or `stored` is neither current ownership nor the logical result
   of composed operations.** The logical outcome of a T call is its own
   (below).
-- **No clock qualification, no endpoint authentication, no fencing.**
+- **No clock check, no endpoint authentication, no fencing.**
 - **No retry budget of its own.** Pauses, jitter and the operation budget come
   only from a caller's `schedule` (the surface core); without one,
   `timeoutMs` applies per Git command and repetitions follow immediately. The
@@ -265,7 +265,7 @@ planning.
 - **No restart without a new hard end and no policy resolution.** A restart
   without `hardEnd` is `requires-time-path` wherever it would restart a box;
   the planner reads no configuration, so the caller resolves a policy source.
-- **Otherwise as above:** no clock or endpoint qualification, no retry budget
+- **Otherwise as above:** no clock or endpoint check, no retry budget
   of its own and no retention rule.
 
 ## Time path

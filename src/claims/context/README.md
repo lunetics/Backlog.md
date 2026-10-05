@@ -93,12 +93,12 @@ context. An operator lists it in `claims.recovery_authorities` to allow
 of a context has the same secret and therefore the same authority ID, so a
 copy cannot be told apart from its original here either.
 
-## Qualification boundary
+## Tested boundary
 
 No CLI or export/import interface is specified here, and this sidecar makes no
 physical-power-loss durability claim. The native contract tests use Linux local
 files, separate Bun processes, injected synchronization failures and gated
 process kills. Run them with `bun run test src/test/claim-context.test.ts`;
 `bun run test claim-` also checks the existing journal and storage adapters.
-These tests do not qualify other platforms, network filesystems, hostile
+These tests cover none of: other platforms, network filesystems, hostile
 same-UID clients, copied active secrets, or automatic worker-restart detection.

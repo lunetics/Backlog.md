@@ -20,6 +20,8 @@ What this fork's claims feature is, what it deliberately is not, and how it rela
   an error code. Agents read the JSON; the text is for people.
 - Surfaces: the CLI is canonical. MCP tools are an adapter over the same operations. The browser shows the claim
   owner beside a task. `backlog instructions claims` is the agent-facing reference.
+- Claims assume cooperating writers. Anyone with push access to the coordination area can break them, as with any
+  shared branch; access control is the host's job.
 
 The worked workflows are in [CLAIMS.md](../../CLAIMS.md). The reference is `backlog instructions claims`.
 
@@ -41,20 +43,19 @@ The worked workflows are in [CLAIMS.md](../../CLAIMS.md). The reference is `back
 - No transaction over several tickets.
 - No time-box extension outside the time path.
 
-## Not qualified
+## What was not tested
 
-[QUALIFICATION.md](../../src/claims/QUALIFICATION.md) names what was measured and with which bounds. It also names
-what was not:
+The feature was tested on Linux containers against a plain Git server and Gitea. Not tested:
 
-- Git hosts and versions other than those measured: GitHub, GitLab, Forgejo, and other versions of Git, OpenSSH
-  or Gitea.
+- GitHub, GitLab, Forgejo, and other versions of Git, OpenSSH or Gitea than the ones used.
 - macOS, Windows and NFS.
-- `git://` for production use.
+- `git://` in production.
 - `clock_uncertainty_ms` above 2000.
 - A Git credential helper for HTTP authentication.
-- Isolation of the write paths by any host; replicas and mirrors; clients of an older Backlog.md; a restore
-  without the new-epoch procedure; retention of journal slots; sizes beyond 1000 claims.
+- Hosts that isolate the write paths for you; replicas and mirrors; older clients; a restore without the
+  new-epoch procedure; retention of journal slots; more than 1000 claims.
 
+What was tested, with the bounds and the full reports: the [evidence repository](https://github.com/lunetics/backlog-md-claims-qualification).
 A sentence in the documentation that no measurement covers is labelled there, not softened.
 
 ## Relation to upstream

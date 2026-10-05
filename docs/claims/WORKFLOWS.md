@@ -36,8 +36,8 @@ flowchart TD
     release --> next
 ```
 
-Builds on [S1], [S2], [S4]. Measured: acquire races, lease expiry and reclaim, lost replies, cut and stalled links
-(QUALIFICATION.md stages A and B).
+Builds on [S1], [S2], [S4]. Tested: acquire races, lease expiry and reclaim, lost replies, cut and stalled links
+([the evidence repository][evidence]).
 
 ## 2. An agent fleet on one backlog
 
@@ -68,8 +68,8 @@ sequenceDiagram
     Note over O: beside task list --json --revision: who holds what, which tasks changed under a holder
 ```
 
-Builds on [S3], [S4], [S5], [S11]. Measured: three clients racing on one ticket, `claim next` under contention up to
-1000 claims (QUALIFICATION.md "Sizes and latency"). Not measured: more than three clients at once.
+Builds on [S3], [S4], [S5], [S11]. Tested: three clients racing on one ticket, `claim next` under contention up to
+1000 claims ([the evidence repository][evidence], sizes and latency). Not tested: more than three clients at once.
 
 ## 3. Hand-over between agents
 
@@ -202,3 +202,4 @@ designed tool for that case.
 [S13]: ../../CLAIMS.md#s13-extend-a-hard-end-over-the-time-path
 [S14]: ../../CLAIMS.md#s14-restart-a-hand-overs-time-box
 [S15]: ../../CLAIMS.md#s15-a-witnessed-transition
+[evidence]: https://github.com/lunetics/backlog-md-claims-qualification

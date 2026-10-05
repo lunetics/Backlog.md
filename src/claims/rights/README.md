@@ -86,7 +86,7 @@ captured clock is called once. There are no writes, retries, fallback stores or
 context creation. Existing local Git fetch effects still apply.
 
 Times use nonnegative safe-integer epoch milliseconds. Clock uncertainty is
-explicit and assumed, not measured or qualified by this module. With `C` the
+explicit and assumed, not checked by this module. With `C` the
 clock reading, `eps` its assumed maximum error, `L` the lease end, `H` the hard
 end, and `g` grace:
 
@@ -117,6 +117,6 @@ the pause is still no work right. Logical operation outcomes, time witnesses,
 mutations, the clock bound and the hosting conditions are separate work
 (the time path adds the first two elsewhere; the clock bound was tested at
 U = 2000 ms: [evidence repository](https://github.com/lunetics/backlog-md-claims-qualification),
-QUALIFICATION.md section "Clock"). This scoped
+see its clock section). This scoped
 projection must not be presented as those guarantees or as an offline right to
 work.

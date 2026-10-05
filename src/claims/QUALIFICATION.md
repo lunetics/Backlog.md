@@ -295,7 +295,9 @@ outside the evidence set; the counted runs of run 1 showed no penalty line, and 
 
 The full reports, one per storage format with every row, run id, injection and measured value, are in
 [docs/claims/qualification/](../../docs/claims/qualification/README.md) (`REPORT-<format>.md`, with a README on the
-stack and the evaluation). The archives themselves, the harness and the evaluator are not part of this repository.
+stack and the evaluation). The archives of the four runs on this revision, each with its evaluator output and the
+sha256 of every file, are published at https://github.com/lunetics/backlog-md-claims-qualification
+(sanitised as described there). The harness and the evaluator are not part of this repository.
 
 Every counted run was evaluated by the frozen evaluator `k20.py` (sha256 `c44b87ff…`, recorded by the driver in the
 run and checked at evaluation) with this revision as its base parameter; it reported the archived product

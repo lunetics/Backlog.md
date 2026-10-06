@@ -1,3 +1,10 @@
+---
+id: doc-6
+title: Claims known limits
+type: guide
+created_date: '2026-10-06 00:03'
+---
+
 # Claims: known limits
 
 What to do about the limits the claims feature has in everyday use, each with the condition in a few sentences.

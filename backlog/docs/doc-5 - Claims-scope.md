@@ -1,3 +1,10 @@
+---
+id: doc-5
+title: Claims scope
+type: guide
+created_date: '2026-10-06 00:03'
+---
+
 # Claims: scope
 
 What this fork's claims feature is, what it deliberately is not, and how it relates to upstream Backlog.md.

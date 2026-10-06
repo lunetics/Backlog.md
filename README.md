@@ -170,10 +170,12 @@ The claims of this branch were exercised end to end against real Git servers, fr
 
 - [CLAIMS.md](CLAIMS.md): what a claim is, fifteen worked workflows with commands, recovery cases, what claims do not do, how to read the JSON
 - `backlog instructions claims`: the reference for commands, output, status and exit codes, error codes, time path, ready selection, batch reclaim and configuration
-- [docs/claims/](docs/claims/): scope and non-scope, workflow proposals for teams and agent fleets, known limits
+- [Claims scope](backlog/docs/doc-5%20-%20Claims-scope.md): what the feature is, what it deliberately is not, what was not tested, and how it relates to upstream
+- [Claims workflow proposals](backlog/docs/doc-4%20-%20Claims-workflow-proposals.md): thirteen ways to run claims in a team or an agent fleet, with proposals for what claims do not do
+- [Claims known limits](backlog/docs/doc-6%20-%20Claims-known-limits.md): what to do about the limits met in everyday use
 - [lunetics/backlog-md-claims-qualification](https://github.com/lunetics/backlog-md-claims-qualification): what was tested and with which bounds, the report of every check, the sanitised run archives
 
-What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. The workflow proposals in [docs/claims/WORKFLOWS.md](docs/claims/WORKFLOWS.md) show how to work with these limits. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
+What claims are not: no scheduler, no fencing (a claim is no permission for an external effect), no worker stopping, no offline exclusivity, no clock check, no protection against direct Git manipulation. The workflow proposals in [Claims workflow proposals](backlog/docs/doc-4%20-%20Claims-workflow-proposals.md) show how to work with these limits. This fork does not replace upstream Backlog.md. The scope discussion with upstream ([issue #937](https://github.com/MrLesk/Backlog.md/issues/937)) follows it.
 
 ---
 

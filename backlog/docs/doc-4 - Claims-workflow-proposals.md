@@ -1,3 +1,10 @@
+---
+id: doc-4
+title: Claims workflow proposals
+type: guide
+created_date: '2026-10-06 00:03'
+---
+
 # Claims: workflow proposals
 
 Thirteen ways to run claims in a team or an agent fleet. Each proposal is built from the worked workflows (S1 to S15)
@@ -338,7 +345,7 @@ For a coordinator or a dashboard that wants to see who holds what and what chang
 2. Expect to see only what this working copy holds: a `revision` changes when the task file in this checkout
    changes, so pull first if you want foreign edits, and `--watch` may coalesce intermediate edits.
 3. Keep the interval modest. Every poll is a claim read, and a tool that fires Git commands in tight succession is
-   the one that meets the limit in [KNOWN-LIMITS.md](KNOWN-LIMITS.md) ("Other Git commands in the same checkout
+   the one that meets the limit in [Claims known limits](doc-6%20-%20Claims-known-limits.md) ("Other Git commands in the same checkout
    during a claim read").
 
 ```mermaid
@@ -355,7 +362,8 @@ sequenceDiagram
     end
 ```
 
-Builds on proposal 2 step 3, the reference section "Owner and ticket changes" and KNOWN-LIMITS.md. Tested:
+Builds on proposal 2 step 3, the reference section "Owner and ticket changes" and the guide "Claims known
+limits". Tested:
 `claim list` up to 1000 claims ([the evidence repository][evidence]), and the poller's limit was measured for the known-limits page.
 Not tested: the join itself at scale.
 

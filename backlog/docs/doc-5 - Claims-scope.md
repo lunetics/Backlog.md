@@ -3,6 +3,7 @@ id: doc-5
 title: Claims scope
 type: guide
 created_date: '2026-10-06 00:03'
+updated_date: '2026-10-14 22:01'
 ---
 
 # Claims: scope
@@ -67,8 +68,8 @@ A sentence in the documentation that no measurement covers is labelled there, no
 
 ## Relation to upstream
 
-- The base is upstream `main` at `69e7b15` (2026-10-03). The claims work sits on top of it as a short series of
-  commits, each with its own tests.
+- The base is upstream `main`. The branch is rebased onto newer upstream releases, and the claims work sits on top
+  of it as a short series of commits, each with its own tests.
 - This fork does not replace upstream Backlog.md and is not an upstream pull request. The scope discussion with
   upstream belongs in [upstream issue #937](https://github.com/MrLesk/Backlog.md/issues/937); this fork does not pre-empt it. Whatever upstream adopts later should
   come from here as small, reviewable changes.
